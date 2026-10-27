@@ -1,0 +1,194 @@
+/* Terminal positions are grouped by device below. Each ID matches its visible port. */
+.connection-lab .mcb-device,
+.connection-lab .variac-device,
+.connection-lab .power-analyser-device,
+.connection-lab .pulley-device {
+  z-index: auto;
+  filter: none;
+}
+
+.mcb-device__image,
+.variac-device__image,
+.power-analyser-device__image,
+.pulley-device__image {
+  filter: drop-shadow(4px 6px 3px rgba(72, 46, 25, 0.22));
+}
+
+.circuit-wires {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.circuit-wire {
+  fill: none;
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 2px 1px rgba(28, 20, 12, 0.35));
+}
+
+.circuit-wire--preview {
+  stroke-dasharray: 7 5;
+  opacity: 0.75;
+}
+
+.current-probe__lead,
+.current-probe__loop {
+  stroke-width: 2.5;
+  filter: drop-shadow(0 1px 1px rgba(28, 20, 12, 0.2));
+}
+
+.current-probe__loop {
+  stroke-width: 3;
+}
+
+.apparatus-terminal {
+  --terminal-size: 22px;
+  position: absolute;
+  z-index: 30;
+  top: var(--terminal-y);
+  left: var(--terminal-x);
+  width: var(--terminal-size);
+  height: var(--terminal-size);
+  transform: translate(-50%, -50%);
+}
+
+.connection-terminal {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 3px solid var(--terminal-color);
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #ffffff, #e6edf3 55%, #a5b2c3);
+  box-shadow: 0 1px 3px #36251180, inset 0 0 0 2px #ffffff;
+  cursor: crosshair;
+  touch-action: none;
+  user-select: none;
+}
+
+.connection-terminal::after {
+  position: absolute;
+  inset: 5px;
+  content: '';
+  border-radius: 50%;
+  background: var(--terminal-color);
+  opacity: 0.3;
+  pointer-events: none;
+}
+
+.connection-terminal:hover,
+.connection-terminal:focus-visible,
+.connection-terminal.terminal-selected {
+  outline: 3px solid #f8fbff;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 6px var(--terminal-color), 0 3px 7px #36251166;
+}
+
+.connection-terminal.terminal-connected::after {
+  opacity: 1;
+}
+
+.terminal-number-label {
+  position: absolute;
+  top: 28px;
+  left: 50%;
+  display: grid;
+  width: 25px;
+  height: 25px;
+  place-items: center;
+  padding: 0;
+  transform: translateX(-50%);
+  border: 1.5px solid var(--terminal-color);
+  border-radius: 50%;
+  color: #251b13;
+  background: #fffdf8;
+  box-shadow: 0 0 0 2px #ffffffd9, 0 2px 4px #36251140;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.terminal-number-label:hover,
+.terminal-number-label:focus-visible {
+  outline: 2px solid var(--terminal-color);
+  outline-offset: 2px;
+}
+
+.terminal-number-label.terminal-connected {
+  color: var(--terminal-color);
+}
+
+.connection-terminal.simulation-guide-highlight,
+.terminal-number-label.simulation-guide-highlight {
+  outline: 4px solid #f59e0b;
+  outline-offset: 3px;
+  box-shadow: 0 0 15px #f59e0b99;
+}
+
+.connection-lab--locked .connection-terminal,
+.connection-lab--locked .terminal-number-label {
+  cursor: not-allowed;
+}
+
+.current-probe-target {
+  inset: auto;
+  z-index: 25;
+  width: 28px;
+  height: 28px;
+  transform: translate(-50%, -50%);
+  border: 2px dashed var(--terminal-color);
+  background: #fffdf870;
+  box-shadow: none;
+}
+
+.current-probe-target::after {
+  display: none;
+}
+
+.current-probe-target.terminal-connected {
+  border-color: transparent;
+  background: transparent;
+}
+
+.current-probe-target:hover,
+.current-probe-target:focus-visible,
+.current-probe-target.terminal-selected {
+  border-color: var(--terminal-color);
+}
+
+/* MCB: 1, 2, 3. */
+#mcb-terminal-1-assembly { --terminal-x: 25px; --terminal-y: 151px; }
+#mcb-terminal-2-assembly { --terminal-x: 65px; --terminal-y: 151px; }
+#mcb-terminal-3-assembly { --terminal-x: 105px; --terminal-y: 151px; }
+
+/* Autotransformer input: 4, 5, 6. */
+#autotransformer-input-terminal-4-assembly { --terminal-x: 222px; --terminal-y: 105px; }
+#autotransformer-input-terminal-5-assembly { --terminal-x: 264px; --terminal-y: 105px; }
+#autotransformer-input-terminal-6-assembly { --terminal-x: 306px; --terminal-y: 105px; }
+
+/* Autotransformer output: 7, 8, 9. */
+#autotransformer-output-terminal-7-assembly { --terminal-x: 222px; --terminal-y: 190px; }
+#autotransformer-output-terminal-8-assembly { --terminal-x: 264px; --terminal-y: 190px; }
+#autotransformer-output-terminal-9-assembly { --terminal-x: 306px; --terminal-y: 190px; }
+
+/* Power analyser: 10–12 on the left, 13–15 on the right. */
+#power-analyser-terminal-10-assembly { --terminal-x: -18px; --terminal-y: 44px; }
+#power-analyser-terminal-11-assembly { --terminal-x: -18px; --terminal-y: 116px; }
+#power-analyser-terminal-12-assembly { --terminal-x: -18px; --terminal-y: 188px; }
+#power-analyser-terminal-13-assembly { --terminal-x: 218px; --terminal-y: 44px; }
+#power-analyser-terminal-14-assembly { --terminal-x: 218px; --terminal-y: 116px; }
+#power-analyser-terminal-15-assembly { --terminal-x: 218px; --terminal-y: 188px; }
+
+/* Pulley motor: 16, 17, 18. */
+#pulley-terminal-16-assembly { --terminal-x: 101px; --terminal-y: 339px; }
+#pulley-terminal-17-assembly { --terminal-x: 147px; --terminal-y: 339px; }
+#pulley-terminal-18-assembly { --terminal-x: 193px; --terminal-y: 339px; }

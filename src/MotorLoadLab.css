@@ -1,0 +1,98 @@
+.power-analyser__display {
+  position: absolute;
+  left: 24%;
+  top: 22.3%;
+  width: 51%;
+  height: 32.6%;
+  z-index: 3;
+  padding: 3px;
+  overflow: hidden;
+  border-radius: 2px;
+  color: #162417;
+  background: #e3ebd2;
+  box-shadow: inset 0 0 5px #52664560;
+  font: 8px/1.2 Arial, sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+
+.power-analyser__frequency { height: 10px; text-align: right; font-size: 7px; }
+.power-analyser__display table { width: 100%; height: 60px; border-collapse: collapse; table-layout: fixed; }
+.power-analyser__display th, .power-analyser__display td { border: 0.6px solid #536450; text-align: center; padding: 0; }
+.power-analyser__display thead th { font-size: 7px; height: 13px; }
+.power-analyser__display th:first-child { width: 12%; }
+.power-analyser__display sub { font-size: 5px; }
+.power-analyser__total { font-weight: 800; }
+.power-analyser__total small { display: block; font-size: 7px; }
+.power-analyser__display .phase-r { color: #aa251d; }
+.power-analyser__display .phase-y { color: #796000; }
+.power-analyser__display .phase-b { color: #164b9b; }
+
+.pulley-device__body { clip-path: inset(12% 0 0 0); }
+.pulley-device__handle {
+  position: absolute;
+  inset: 0;
+  clip-path: inset(0 0 88% 0);
+  transform-origin: 50% 10%;
+  filter: none;
+}
+.pulley-device--turning .pulley-device__handle { animation: pulley-handle-turn 1.5s ease-in-out; }
+.pulley-hand {
+  position: absolute;
+  z-index: 40;
+  left: 225px;
+  top: 60px;
+  width: 78px;
+  height: 78px;
+  padding: 0;
+  border: 0;
+  border-radius: 16px;
+  background: transparent;
+  transform-origin: 20% 25%;
+  filter: drop-shadow(1px 3px 2px #35251566);
+}
+.pulley-hand img { display: block; width: 100%; height: 100%; object-fit: contain; pointer-events: none; }
+.pulley-hand:not(:disabled):hover { filter: drop-shadow(0 0 5px #e8b24b); }
+.pulley-hand:disabled { cursor: default; opacity: 0.5; }
+.pulley-device--turning .pulley-hand { opacity: 1; animation: pulley-hand-turn 1.5s ease-in-out; }
+.pulley-load-info {
+  position: absolute;
+  top: 391px;
+  left: -22px;
+  width: 340px;
+  padding: 2px 4px;
+  display: grid;
+  gap: 1px;
+  color: #3b291c;
+  text-align: center;
+  font-size: 10px;
+  line-height: 12px;
+}
+.pulley-load-info strong { font-size: 12px; }
+#pulley-load-hint { font-weight: 700; }
+
+@keyframes pulley-hand-turn {
+  0%, 100% { transform: translate(0, 0) rotate(0); }
+  27%, 35% { transform: translate(-92px, -43px) rotate(-15deg); }
+  60% { transform: translate(-92px, -43px) rotate(30deg); }
+  78% { transform: translate(-92px, -43px) rotate(0); }
+}
+@keyframes pulley-handle-turn {
+  0%, 27%, 100% { transform: perspective(300px) rotateY(0) rotateZ(0); }
+  35% { transform: perspective(300px) rotateY(-22deg) rotateZ(-8deg); }
+  60% { transform: perspective(300px) rotateY(32deg) rotateZ(10deg); }
+  78% { transform: perspective(300px) rotateY(0) rotateZ(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pulley-device--turning .pulley-hand,
+  .pulley-device--turning .pulley-device__handle { animation: none; }
+}
+
+.motor-observation-table th { height: 39px; padding: 2px 0; font-size: 10px; }
+.motor-observation-table td { height: 27px; padding: 0 1px; font-size: 10.5px; font-variant-numeric: tabular-nums; }
+.motor-observation-table th small { display: block; margin-top: 3px; font-size: 8px; font-weight: 600; }
+.motor-observation-table th:first-child { width: 29px; }
+.motor-observation-table th:last-child { width: 45px; }
+.observation-table-note { position: relative; margin: 8px 12px 12px; font-size: 10px; line-height: 1.5; }
+.motor-torque-formula { padding: 13px; text-align: center; }
+.motor-torque-formula strong { display: block; font-size: 18px; margin-bottom: 10px; }
+.motor-torque-formula p { margin: 4px 0; font-size: 12px; line-height: 1.5; }

@@ -1,0 +1,216 @@
+{
+  "experimentName": "Basic Electrical Science Lab",
+  "defaultLocale": "en",
+  "locales": [
+    "en"
+  ],
+  "audio": {
+    "autoplay": true
+  },
+  "steps": [
+    {
+      "id": 1,
+      "target": "#experiment-title-board",
+      "title": {
+        "en": "Aim"
+      },
+      "description": {
+        "en": "Perform a brake-load test on a three-phase motor and record its phase voltages, phase currents, total input power, spring balance weights, torque, and speed."
+      },
+      "audio": null,
+      "placement": "bottom"
+    },
+    {
+      "id": 2,
+      "target": "#instruction-button",
+      "title": {
+        "en": "Instruction Button"
+      },
+      "description": {
+        "en": "The Instructions provide step-by-step guidance on how to perform the simulation."
+      },
+      "audio": "/walkthrough-audios/instruction%20%20button.wav",
+      "placement": "right"
+    },
+    {
+      "id": 3,
+      "target": "#ai-guide-button",
+      "title": {
+        "en": "AI Guide Button"
+      },
+      "description": {
+        "en": "The AI guide will assist you in performing the simulation accurately at each step."
+      },
+      "audio": "/walkthrough-audios/AI%20Guide%20Button.wav",
+      "placement": "right"
+    },
+    {
+      "id": 4,
+      "target": "#check-button",
+      "title": {
+        "en": "Check Button"
+      },
+      "description": {
+        "en": "The CHECK button verifies all the connections to ensure that they are correct."
+      },
+      "audio": "/walkthrough-audios/Check%20Button.wav",
+      "placement": "right"
+    },
+    {
+      "id": 5,
+      "target": "#auto-connect-button",
+      "title": {
+        "en": "Auto Connect Button"
+      },
+      "description": {
+        "en": "The AUTO CONNECT button makes all the connections automatically."
+      },
+      "audio": "/walkthrough-audios/Auto%20Connect%20Button.wav",
+      "placement": "right"
+    },
+    {
+      "id": 6,
+      "target": "#add-reading-button",
+      "title": {
+        "en": "Add Button"
+      },
+      "description": {
+        "en": " The ADD button adds the readings to the observation table."
+      },
+      "audio": "/walkthrough-audios/add%20button.wav",
+      "placement": "right"
+    },
+    {
+      "id": 7,
+      "target": "#plot-button",
+      "title": {
+        "en": "Plot Button"
+      },
+      "description": {
+        "en": "The PLOT button helps visualise the readings through a graph."
+      },
+      "audio": "/walkthrough-audios/plot%20button.wav",
+      "placement": "right"
+    },
+    {
+      "id": 8,
+      "target": "#reset-button",
+      "title": {
+        "en": "Reset Button"
+      },
+      "description": {
+        "en": " The RESET button refresh the simulation to its initial state for a fresh start. "
+      },
+      "audio": "/walkthrough-audios/Reset%20Button-.wav",
+      "placement": "right"
+    },
+    {
+      "id": 9,
+      "target": "#print-button",
+      "title": {
+        "en": "Print Button"
+      },
+      "description": {
+        "en": " The PRINT button allows you to print the simulation. "
+      },
+      "audio": "/walkthrough-audios/Print%20Button.wav",
+      "placement": "right"
+    },
+    {
+      "id": 10,
+      "target": "#power-supply",
+      "title": {
+        "en": "MCB"
+      },
+      "description": {
+        "en": "The MCB is the main supply switch. Complete and check all wiring and current loops before switching it on. The three-phase supply line voltage is 400 V at 50 Hz."
+      },
+      "audio": null,
+      "placement": "left"
+    },
+    {
+      "id": 11,
+      "target": "#autotransformer-device",
+      "title": {
+        "en": "Autotransformer"
+      },
+      "description": {
+        "en": "After switching on the MCB, click the autotransformer knob to set the line voltage to 400 V. The power analyser then displays the supplied phase readings."
+      },
+      "audio": null,
+      "placement": "left"
+    },
+    {
+      "id": 12,
+      "target": "#power-analyser-device",
+      "title": {
+        "en": "Power Analyser"
+      },
+      "description": {
+        "en": "The screen lists R, Y, and B phase RMS voltages and currents, with the total three-phase power in kilowatts. Current loops 13, 14, and 15 clamp around the matching red, yellow, and blue motor wires."
+      },
+      "audio": null,
+      "placement": "left"
+    },
+    {
+      "id": 13,
+      "target": "#pulley-hand-control",
+      "title": {
+        "en": "Apply Brake Load"
+      },
+      "description": {
+        "en": "After recording the current condition with ADD, click the hand. It moves to and turns the top handle, changing the pulley image, weights, analyser readings, and speed to the next load. Repeat for all six conditions."
+      },
+      "audio": null,
+      "placement": "left"
+    },
+    {
+      "id": 19,
+      "target": "#observation-table-panel",
+      "title": {
+        "en": "Observation Table"
+      },
+      "description": {
+        "en": "Click ADD to record the current load. Record all six conditions, starting at W1 = 0 kg and W2 = 0 kg. After each reading, click the hand to apply the next load."
+      },
+      "audio": null,
+      "placement": "right"
+    },
+    {
+      "id": 20,
+      "target": "#results-graphs-panel",
+      "title": {
+        "en": "Graphs"
+      },
+      "description": {
+        "en": "Plot speed versus torque and total input power versus torque after recording all six load conditions."
+      },
+      "audio": null,
+      "placement": "top"
+    },
+    {
+      "id": 21,
+      "target": "#formula-section-panel",
+      "title": {
+        "en": "Formulas"
+      },
+      "description": {
+        "en": "Torque T = (W1 − W2) × r × 9.81 N·m. The brake drum radius r is 0.075 m; spring balance weights W1 and W2 are in kilograms."
+      },
+      "audio": null,
+      "placement": "right"
+    },
+    {
+      "id": 22,
+      "target": "#generate-report-button",
+      "title": {
+        "en": "Generate Report"
+      },
+      "description": {
+        "en": "The Report button generates a summarised report of the simulation. After completing the observation table and plotting the graphs, generate the report. The report will include the time taken to complete the simulation, simulation summary, the apparatus used, recorded readings, graphs and conclusion."
+      },
+      "audio": "/walkthrough-audios/Generate%20Report%20.wav",
+      "placement": "right"
+    }
+  ]
+}

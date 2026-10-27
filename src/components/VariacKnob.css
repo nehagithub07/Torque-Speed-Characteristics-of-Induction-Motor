@@ -1,0 +1,10 @@
+/* Keep the rotating knob and its hit area centered over the printed dial. */
+.variac-device__knob,
+.variac-device__control {
+  top: 54.3%;
+  left: 33.7%;
+  width: 25%;
+  height: auto;
+  aspect-ratio: 1;
+  translate: -50% -50%;
+}

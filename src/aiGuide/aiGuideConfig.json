@@ -1,0 +1,27 @@
+{
+  "guideName": "AI Guide",
+  "defaultLocale": "en",
+  "locales": ["en"],
+  "steps": [
+    {
+      "id": 1,
+      "text": "STEP 1: The previous apparatus, circuit diagram, wiring nodes, and resistance sliders have been cleared from the workspace.",
+      "audio": "#"
+    },
+    {
+      "id": 2,
+      "text": "STEP 2: Use the observation table area after the replacement apparatus is added.",
+      "audio": "#"
+    },
+    {
+      "id": 3,
+      "text": "STEP 3: Plot the graph after the required readings are available.",
+      "audio": "#"
+    },
+    {
+      "id": 4,
+      "text": "STEP 4: Use reset, print, and report controls as needed once the new setup is complete.",
+      "audio": "#"
+    }
+  ]
+}
