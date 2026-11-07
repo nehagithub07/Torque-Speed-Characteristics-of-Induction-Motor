@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import EquipmentPanel from './EquipmentPanel.jsx'
+import CircuitWire from './CircuitWire.jsx'
+import { findWireDropTarget } from '../utils/wireDragging.js'
 import {
   CONNECTION_ENDPOINTS_BY_ID, CURRENT_PROBES, TERMINALS, TERMINALS_BY_ID, getConnectionLabel,
 } from '../config/circuitConnections.js'
@@ -36,7 +38,7 @@ const ConnectionLab = ({
   setVoltage,
   voltage,
   loadLevel, turning, canIncreaseLoad, readingsReady, reading,
-  onIncreaseLoad, onTurningChange, loadHint,
+  onIncreaseLoad, onTurningChange,
 }) => {
   const labRef = useRef(null)
   const connectionsRef = useRef([])
@@ -71,8 +73,12 @@ const ConnectionLab = ({
   }, [])
 
   const clearSelection = useCallback(() => {
+    const drag = dragRef.current
     selectedRef.current = null
     dragRef.current = null
+    if (drag && labRef.current?.hasPointerCapture(drag.pointerId)) {
+      labRef.current.releasePointerCapture(drag.pointerId)
+    }
     setSelectedTerminal(null)
     setDraft(null)
   }, [])
@@ -192,13 +198,15 @@ const ConnectionLab = ({
       const id = element.dataset.terminalId
       element.classList.toggle('terminal-connected', connected.has(id))
       element.classList.toggle('terminal-selected', id === selectedTerminal)
+      element.classList.toggle('terminal-drag-source', id === draft?.sourceId)
+      element.classList.toggle('terminal-drop-target', id === draft?.targetId)
       element.classList.toggle('simulation-guide-highlight', highlighted.has(id))
       if (element.classList.contains('connection-terminal')) {
         element.setAttribute('aria-pressed', String(id === selectedTerminal))
         element.setAttribute('aria-disabled', String(element.disabled || connectionsLocked || powerOn))
       }
     })
-  }, [connections, connectionsLocked, highlightedTerminalIds, powerOn, selectedTerminal])
+  }, [connections, connectionsLocked, draft, highlightedTerminalIds, powerOn, selectedTerminal])
 
   const localPoint = useCallback(event => {
     const lab = labRef.current
@@ -210,23 +218,46 @@ const ConnectionLab = ({
   }, [])
 
   useEffect(() => {
+    const dropTarget = (event, sourceId) => {
+      const terminals = [...labRef.current.querySelectorAll('.connection-terminal[data-terminal-id]')]
+        .map(element => {
+          const rect = element.getBoundingClientRect()
+          return {
+            id: element.dataset.terminalId,
+            x: rect.left + rect.width / 2,
+            y: rect.top + rect.height / 2,
+            radius: Math.min(rect.width, rect.height) / 2,
+            disabled: element.disabled || element.getAttribute('aria-disabled') === 'true',
+          }
+        })
+      return findWireDropTarget({ x: event.clientX, y: event.clientY }, terminals, sourceId)
+    }
     const move = event => {
       const drag = dragRef.current
       if (!drag || drag.pointerId !== event.pointerId) return
+      if (lockedRef.current) { clearSelection(); return }
       if (Math.hypot(event.clientX - drag.x, event.clientY - drag.y) > 4) drag.moved = true
-      setDraft({ sourceId: drag.sourceId, target: localPoint(event) })
+      const target = drag.moved ? dropTarget(event, drag.sourceId) : null
+      setDraft({
+        sourceId: drag.sourceId,
+        targetId: target?.id,
+        target: localPoint(target ? { clientX: target.x, clientY: target.y } : event),
+      })
     }
     const finish = event => {
       const drag = dragRef.current
       if (!drag || drag.pointerId !== event.pointerId) return
-      const target = document.elementFromPoint(event.clientX, event.clientY)
-        ?.closest('.connection-terminal[data-terminal-id]')
+      const target = dropTarget(event, drag.sourceId)
       dragRef.current = null
+      if (labRef.current.hasPointerCapture(event.pointerId)) labRef.current.releasePointerCapture(event.pointerId)
       setDraft(null)
-      if (target && !target.disabled && target.dataset.terminalId !== drag.sourceId) {
-        addConnection(drag.sourceId, target.dataset.terminalId)
-      } else if (!drag.moved && target) {
+      if (lockedRef.current) { clearSelection(); return }
+      if (!drag.moved) {
         selectTerminal(drag.sourceId)
+      } else if (target) {
+        addConnection(drag.sourceId, target.id)
+      } else {
+        clearSelection()
       }
     }
     const cancel = () => clearSelection()
@@ -234,11 +265,13 @@ const ConnectionLab = ({
     window.addEventListener('pointermove', move)
     window.addEventListener('pointerup', finish)
     window.addEventListener('pointercancel', cancel)
+    window.addEventListener('blur', cancel)
     window.addEventListener('keydown', escape)
     return () => {
       window.removeEventListener('pointermove', move)
       window.removeEventListener('pointerup', finish)
       window.removeEventListener('pointercancel', cancel)
+      window.removeEventListener('blur', cancel)
       window.removeEventListener('keydown', escape)
     }
   }, [addConnection, clearSelection, localPoint, selectTerminal])
@@ -248,6 +281,7 @@ const ConnectionLab = ({
     if (!terminal || terminal.disabled || event.button !== 0 || lockedRef.current) return
     event.preventDefault()
     terminal.focus()
+    labRef.current.setPointerCapture(event.pointerId)
     dragRef.current = {
       sourceId: terminal.dataset.terminalId,
       pointerId: event.pointerId,
@@ -278,7 +312,7 @@ const ConnectionLab = ({
   const visibleDraft = connectionsLocked || powerOn ? null : draft
   return (
     <div
-      className={`connection-lab ${connectionsLocked ? 'connection-lab--locked' : ''}`}
+      className={`connection-lab ${connectionsLocked ? 'connection-lab--locked' : ''} ${draft ? 'connection-lab--dragging' : ''}`}
       id="connection-lab"
       ref={labRef}
       aria-label="Experiment apparatus area"
@@ -293,7 +327,7 @@ const ConnectionLab = ({
         voltage={voltage}
         loadLevel={loadLevel} turning={turning} canIncreaseLoad={canIncreaseLoad}
         readingsReady={readingsReady} reading={reading}
-        onIncreaseLoad={onIncreaseLoad} onTurningChange={onTurningChange} loadHint={loadHint}
+        onIncreaseLoad={onIncreaseLoad} onTurningChange={onTurningChange}
       />
       <svg
         id="circuit-wires"
@@ -303,10 +337,10 @@ const ConnectionLab = ({
         aria-hidden="true"
       >
         {connections.filter(({ sourceId, targetId }) => !getProbeConnection(sourceId, targetId)).map(({ id, sourceId, targetId }) => (
-          <path
+          <CircuitWire
             key={id}
             id={id}
-            className={`circuit-wire wire-${getConnectionLabel(sourceId, targetId)}`}
+            className={`wire-${getConnectionLabel(sourceId, targetId)}`}
             data-source-terminal={sourceId}
             data-target-terminal={targetId}
             data-connection={getConnectionLabel(sourceId, targetId)}
@@ -328,16 +362,17 @@ const ConnectionLab = ({
               data-probe-terminal={terminalId}
               data-clamped-wire={getConnectionLabel(...wire)}
             >
-              <path className="circuit-wire current-probe__lead" d={lead} />
-              <path className="circuit-wire current-probe__loop" d={loop} />
+              <CircuitWire className="current-probe__lead" d={lead} />
+              <CircuitWire className="current-probe__loop" d={loop} />
             </g>
           )
         })}
         {visibleDraft && (
-          <path
+          <CircuitWire
             id="connection-preview"
-            className="circuit-wire circuit-wire--preview"
-            d={getWirePath(endpointPositions[visibleDraft.sourceId], visibleDraft.target)}
+            className="circuit-wire--preview"
+            d={getWirePath(endpointPositions[visibleDraft.sourceId], visibleDraft.target,
+              visibleDraft.sourceId.startsWith('mcb-') || visibleDraft.targetId?.startsWith('mcb-'))}
             stroke={CONNECTION_ENDPOINTS_BY_ID[visibleDraft.sourceId].color}
           />
         )}

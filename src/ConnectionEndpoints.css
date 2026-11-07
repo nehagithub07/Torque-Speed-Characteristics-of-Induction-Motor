@@ -24,31 +24,31 @@
   pointer-events: none;
 }
 
-.circuit-wire {
+.circuit-wire-bundle {
+  filter: drop-shadow(0 3px 2px rgba(28, 20, 12, 0.22));
+}
+
+.circuit-wire,
+.circuit-wire-outline {
   fill: none;
-  stroke-width: 4;
+  stroke-width: 6;
   stroke-linecap: round;
   stroke-linejoin: round;
-  filter: drop-shadow(0 2px 1px rgba(28, 20, 12, 0.35));
+  shape-rendering: geometricPrecision;
+}
+
+.circuit-wire-outline {
+  stroke: #21140c;
+  stroke-opacity: 0.55;
+  stroke-width: 8;
 }
 
 .circuit-wire--preview {
-  stroke-dasharray: 7 5;
-  opacity: 0.75;
-}
-
-.current-probe__lead,
-.current-probe__loop {
-  stroke-width: 2.5;
-  filter: drop-shadow(0 1px 1px rgba(28, 20, 12, 0.2));
-}
-
-.current-probe__loop {
-  stroke-width: 3;
+  opacity: 0.9;
 }
 
 .apparatus-terminal {
-  --terminal-size: 22px;
+  --terminal-size: 28px;
   position: absolute;
   z-index: 30;
   top: var(--terminal-y);
@@ -65,40 +65,72 @@
   width: 100%;
   height: 100%;
   padding: 0;
-  border: 3px solid var(--terminal-color);
+  border: 1px solid #a5adb5;
   border-radius: 50%;
-  background: radial-gradient(circle at 35% 30%, #ffffff, #e6edf3 55%, #a5b2c3);
-  box-shadow: 0 1px 3px #36251180, inset 0 0 0 2px #ffffff;
-  cursor: crosshair;
+  background:
+    radial-gradient(circle at 30% 22%, #ffffff 0 12%, transparent 30%),
+    linear-gradient(135deg, #fbfdff, #dce2e6 60%, #adb7bf);
+  box-shadow: 0 2px 4px #36251155, inset 1px 1px 2px #ffffff, inset -1px -1px 3px #7b87985c;
+  cursor: grab;
   touch-action: none;
   user-select: none;
+  transition: box-shadow 140ms ease, border-color 140ms ease;
+}
+
+.connection-terminal::before {
+  position: absolute;
+  inset: 4px;
+  content: '';
+  border: 2px solid var(--terminal-color);
+  border-radius: 50%;
+  background: #f5f7f9;
+  box-shadow: inset 0 1px 2px #28354540, 0 1px 1px #ffffff;
+  pointer-events: none;
 }
 
 .connection-terminal::after {
   position: absolute;
-  inset: 5px;
+  inset: 9px;
   content: '';
   border-radius: 50%;
   background: var(--terminal-color);
-  opacity: 0.3;
+  opacity: 0.45;
   pointer-events: none;
 }
 
 .connection-terminal:hover,
 .connection-terminal:focus-visible,
-.connection-terminal.terminal-selected {
-  outline: 3px solid #f8fbff;
+.connection-terminal.terminal-selected,
+.connection-terminal.terminal-drag-source {
+  border-color: var(--terminal-color);
+  outline: 2px solid #f8fbff;
   outline-offset: 2px;
-  box-shadow: 0 0 0 6px var(--terminal-color), 0 3px 7px #36251166;
+  box-shadow: 0 0 0 4px var(--terminal-color), 0 3px 7px #36251166;
+}
+
+.connection-terminal.terminal-connected {
+  border-color: var(--terminal-color);
+  box-shadow: 0 0 0 2px #ffffffc7, 0 2px 5px #36251155;
 }
 
 .connection-terminal.terminal-connected::after {
   opacity: 1;
 }
 
+.connection-terminal.terminal-drop-target {
+  outline: 3px solid #ffffff;
+  outline-offset: 3px;
+  box-shadow: 0 0 0 7px var(--terminal-color), 0 0 15px #ffffff;
+}
+
+.connection-lab--dragging,
+.connection-lab--dragging .connection-terminal {
+  cursor: grabbing;
+}
+
 .terminal-number-label {
   position: absolute;
-  top: 28px;
+  top: 32px;
   left: 50%;
   display: grid;
   width: 25px;
@@ -108,7 +140,7 @@
   transform: translateX(-50%);
   border: 1.5px solid var(--terminal-color);
   border-radius: 50%;
-  color: #251b13;
+  color: var(--terminal-color);
   background: #fffdf8;
   box-shadow: 0 0 0 2px #ffffffd9, 0 2px 4px #36251140;
   font-size: 12px;
@@ -150,6 +182,7 @@
   box-shadow: none;
 }
 
+.current-probe-target::before,
 .current-probe-target::after {
   display: none;
 }

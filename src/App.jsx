@@ -254,11 +254,6 @@ const App = () => {
   const readingsReady = connectionsVerified && powerOn && normalizedVoltage >= LINE_VOLTAGE
   const canAddReading = readingsReady && !loadTurning && !hasDuplicateReading && readingCount < MAX_OBSERVATIONS
   const canIncreaseLoad = readingsReady && hasDuplicateReading && !loadTurning && activeLoadLevel < MAX_MOTOR_LOAD_LEVEL
-  const loadHint = !readingsReady ? 'Verify wiring, turn on the MCB, then set 400 V.'
-    : loadTurning ? 'Turning the handle…'
-      : !hasDuplicateReading ? 'Click ADD to record this load.'
-        : activeLoadLevel < MAX_MOTOR_LOAD_LEVEL ? 'Click the hand to increase the load.'
-          : 'All six readings recorded. Click PLOT.'
 
   const activeInstruction = useMemo(() => getActiveInstruction({
     connectionsVerified,
@@ -398,7 +393,7 @@ const App = () => {
     const readingAddedAlert = {
       ...EXPERIMENT_ALERTS.readingAdded,
       description: nextObservationCount === MAX_OBSERVATIONS
-        ? 'All six readings recorded. Click PLOT to view the motor load-test graphs.'
+        ? 'All six readings recorded. Click PLOT to view the torque versus speed graph.'
         : `Reading ${nextObservationCount} recorded. Click the hand to turn the pulley handle and increase the load.`,
       target: nextObservationCount === MAX_OBSERVATIONS ? '#plot-button' : '#pulley-hand-control',
     }
@@ -480,7 +475,7 @@ const App = () => {
     if (!graphGenerated) {
       setStatus('Plot the graph before generating the report.')
       showStepAlert(EXPERIMENT_ALERTS.minimumReadingsRequired, {
-        description: 'Click the Plot button to generate the graphs before generating a report.',
+        description: 'Click the Plot button to generate the graph before generating a report.',
         target: '#plot-button',
         title: 'Plot Graph Before Report',
       })
@@ -820,7 +815,6 @@ const App = () => {
                     reading={reading}
                     onIncreaseLoad={handleIncreaseLoad}
                     onTurningChange={setLoadTurning}
-                    loadHint={loadHint}
                   />
                 </section>
               </section>

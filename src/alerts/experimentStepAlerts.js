@@ -101,7 +101,7 @@ export const EXPERIMENT_ALERTS = {
     type: 'success',
   },
   fifthReadingAdded: {
-    description: 'Readings added successfully. Now, click the plot button to generate the graphs.',
+    description: 'Readings added successfully. Now, click the plot button to generate the graph.',
     duration: 6200,
     target: '#plot-button',
     title: '5th readings added',
@@ -149,10 +149,10 @@ export const EXPERIMENT_ALERTS = {
     type: 'warning',
   },
   graphPlotted: {
-    description: 'The graphs of speed and total input power versus torque are ready. Generate the report, print the simulation, or reset to start again.',
+    description: 'The torque versus speed graph is ready, with speed (RPM) on the X-axis and torque (N-m) on the Y-axis. Generate the report, print the simulation, or reset to start again.',
     duration: 20000,
     target: '#results-graphs-panel',
-    title: 'Graphs Plotted Successfully',
+    title: 'Graph Plotted Successfully',
     type: 'success',
   },
   insufficientGraphReadings: {

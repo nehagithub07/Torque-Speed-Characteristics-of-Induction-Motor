@@ -21,7 +21,7 @@ const PowerAnalyser = ({ powerOn, reading, readingsReady = false }) => (
                 <th scope="row" className={`phase-${phase.toLowerCase()}`}>{phase}</th>
                 <td>{readingsReady ? reading[`v${phase.toLowerCase()}`] : '—'}</td>
                 <td>{readingsReady ? reading[`i${phase.toLowerCase()}`].toFixed(2) : '—'}</td>
-                {index === 0 && <td rowSpan={3} className="power-analyser__total">{readingsReady ? reading.power.toFixed(2) : '—'}<small>kW</small></td>}
+                {index === 0 && <td rowSpan={3} className="power-analyser__total">{readingsReady ? reading.power.toFixed(2) : '—'}</td>}
               </tr>
             ))}
           </tbody>

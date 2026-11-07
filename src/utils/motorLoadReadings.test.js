@@ -37,14 +37,16 @@ test('load lookup stays within the six states and observations are independent c
   assert.equal(getMotorLoadReading(0).w1, 0)
 })
 
-test('the generated report contains the six motor rows, torque formula, and relevant graphs', () => {
+test('the generated report contains the six motor rows, torque formula, and a single torque versus speed graph', () => {
   const html = createReportHtml({
     baseHref: 'http://localhost/', iitLogoSrc: 'iit.png', virtualLabsLogoSrc: 'vlab.png',
     observations: MOTOR_LOAD_READINGS.map((_, loadLevel) => createMotorObservation({ id: loadLevel + 1, loadLevel })),
     sessionStart: Date.now() - 60000,
   })
-  assert.match(html, /Speed vs Torque/)
-  assert.match(html, /Total Input Power vs Torque/)
+  assert.match(html, /Torque vs Speed/)
+  assert.match(html, /speed on the X-axis and torque on the Y-axis/)
+  assert.equal((html.match(/class="report-graph__svg"/g) ?? []).length, 1)
+  assert.doesNotMatch(html, /Total Input Power vs Torque/)
   assert.match(html, /T = \(W1 − W2\) × 0.075 × 9.81/)
   for (const row of expectedRows) assert.ok(html.includes('<tr>' + row.map(value => `<td>${value}</td>`).join('') + '</tr>'))
   assert.doesNotMatch(html.split('<script>')[0], /undefined|NaN|Voltage Regulation|Single Phase Transformer/)

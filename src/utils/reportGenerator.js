@@ -1,3 +1,4 @@
+import { TORQUE_SPEED_AXES, getTorqueSpeedPoints, getTorqueSpeedPosition, getTorqueSpeedPath } from './torqueSpeedGraph.js'
 import { LINE_VOLTAGE, SUPPLY_FREQUENCY, BRAKE_DRUM_RADIUS, MOTOR_LOAD_READINGS, OBSERVATION_COLUMNS } from './motorLoadReadings.js'
 
 const GRAPH_VIEWBOX = {
@@ -10,7 +11,6 @@ const GRAPH_PLOT = {
   top: 36,
   width: 520,
 }
-const GRAPH_TICK_COUNT = 5
 const OBSERVATION_ROW_COUNT = MOTOR_LOAD_READINGS.length
 const emptyObservationRows = Array.from({ length: OBSERVATION_ROW_COUNT })
 
@@ -25,12 +25,6 @@ const toNumber = (value) => {
   const number = Number(value)
 
   return Number.isFinite(number) ? number : 0
-}
-
-const toOptionalNumber = (value) => {
-  const number = Number(value)
-
-  return Number.isFinite(number) ? number : undefined
 }
 
 const formatNumber = (value, fractionDigits = 1) => (
@@ -58,82 +52,6 @@ const getSessionDurationText = (sessionStart, sessionEnd) => {
   return `${durationMinutes} min ${String(durationSeconds).padStart(2, '0')} sec`
 }
 
-const getNiceStep = (roughStep) => {
-  if (roughStep <= 0) {
-    return 1
-  }
-
-  const magnitude = 10 ** Math.floor(Math.log10(roughStep))
-  const normalizedStep = roughStep / magnitude
-  const niceStep = (
-    normalizedStep <= 1 ? 1
-      : normalizedStep <= 2 ? 2
-        : normalizedStep <= 2.5 ? 2.5
-          : normalizedStep <= 5 ? 5
-            : 10
-  )
-
-  return niceStep * magnitude
-}
-
-const getNiceMaximum = (values) => {
-  const maxValue = Math.max(0, ...values)
-  const paddedMax = maxValue > 0 ? maxValue * 1.08 : 1
-  const step = getNiceStep(paddedMax / (GRAPH_TICK_COUNT - 1))
-
-  return step * (GRAPH_TICK_COUNT - 1)
-}
-
-const getTicks = (maxValue) => (
-  Array.from({ length: GRAPH_TICK_COUNT }, (_, index) => (
-    (maxValue / (GRAPH_TICK_COUNT - 1)) * index
-  ))
-)
-
-const getGraphData = (observations, valueKey) => (
-  observations
-    .map((row) => {
-      const torque = toOptionalNumber(row.torque)
-      const value = toOptionalNumber(row[valueKey])
-
-      if (!Number.isFinite(torque) || !Number.isFinite(value)) {
-        return null
-      }
-
-      return { torque, value }
-    })
-    .filter(Boolean)
-    .sort((current, next) => current.torque - next.torque)
-)
-
-const getChartPoint = (point, xMax, yMax) => ({
-  ...point,
-  x: GRAPH_PLOT.left + (point.torque / xMax) * GRAPH_PLOT.width,
-  y: GRAPH_PLOT.top + GRAPH_PLOT.height - (point.value / yMax) * GRAPH_PLOT.height,
-})
-
-const getSmoothPath = (points) => {
-  if (points.length === 0) {
-    return ''
-  }
-
-  if (points.length === 1) {
-    return `M${points[0].x.toFixed(1)} ${points[0].y.toFixed(1)}`
-  }
-
-  return points.slice(0, -1).reduce((path, point, index) => {
-    const previous = points[index - 1] ?? point
-    const next = points[index + 1]
-    const afterNext = points[index + 2] ?? next
-    const controlOneX = point.x + (next.x - previous.x) / 6
-    const controlOneY = point.y + (next.y - previous.y) / 6
-    const controlTwoX = next.x - (afterNext.x - point.x) / 6
-    const controlTwoY = next.y - (afterNext.y - point.y) / 6
-
-    return `${path} C${controlOneX.toFixed(1)} ${controlOneY.toFixed(1)}, ${controlTwoX.toFixed(1)} ${controlTwoY.toFixed(1)}, ${next.x.toFixed(1)} ${next.y.toFixed(1)}`
-  }, `M${points[0].x.toFixed(1)} ${points[0].y.toFixed(1)}`)
-}
-
 const createReportGraphSvg = ({
   ariaLabel,
   color,
@@ -147,17 +65,15 @@ const createReportGraphSvg = ({
 
   const chartRight = GRAPH_PLOT.left + GRAPH_PLOT.width
   const chartBottom = GRAPH_PLOT.top + GRAPH_PLOT.height
-  const xMax = getNiceMaximum(points.map((point) => point.torque))
-  const yMax = getNiceMaximum(points.map((point) => point.value))
-  const xTicks = getTicks(xMax)
-  const yTicks = getTicks(yMax)
-  const chartPoints = points.map((point) => getChartPoint(point, xMax, yMax))
-  const linePath = getSmoothPath(chartPoints)
+  const xTicks = TORQUE_SPEED_AXES.speedTicks
+  const yTicks = TORQUE_SPEED_AXES.torqueTicks
+  const chartPoints = points.map(point => getTorqueSpeedPosition(point, GRAPH_PLOT))
+  const linePath = getTorqueSpeedPath(chartPoints)
   const chartId = title.toLowerCase().replace(/[^a-z0-9]+/g, '-')
   const clipId = `${chartId}-clip`
 
   const xTickMarkup = xTicks.map((tick) => {
-    const x = GRAPH_PLOT.left + (tick / xMax) * GRAPH_PLOT.width
+    const { x } = getTorqueSpeedPosition({ speed: tick, torque: 0 }, GRAPH_PLOT)
 
     return `
       <g>
@@ -169,7 +85,7 @@ const createReportGraphSvg = ({
   }).join('')
 
   const yTickMarkup = yTicks.map((tick) => {
-    const y = GRAPH_PLOT.top + GRAPH_PLOT.height - (tick / yMax) * GRAPH_PLOT.height
+    const { y } = getTorqueSpeedPosition({ speed: TORQUE_SPEED_AXES.speedMin, torque: tick }, GRAPH_PLOT)
 
     return `
       <g>
@@ -220,7 +136,7 @@ const createReportGraphSvg = ({
       <path class="report-graph__axis" d="M${GRAPH_PLOT.left} ${chartBottom}V${GRAPH_PLOT.top}" />
 
       <text class="report-graph__axis-title" text-anchor="middle" x="${GRAPH_PLOT.left + GRAPH_PLOT.width / 2}" y="${GRAPH_VIEWBOX.height - 10}">
-        Torque (N·m)
+        Speed (RPM)
       </text>
       <text
         class="report-graph__axis-title"
@@ -286,21 +202,13 @@ export const createReportHtml = ({
   const fullLoadRow = getFullLoadObservation(observations)
   const observationRows = createObservationRows(observations)
   const summaryRows = createSummaryRows(observations)
-  const speedGraphSvg = createReportGraphSvg({
-    ariaLabel: 'Speed versus torque graph',
+  const torqueSpeedGraphSvg = createReportGraphSvg({
+    ariaLabel: 'Torque (N-m) versus Speed (RPM); speed on the X-axis and torque on the Y-axis',
     color: '#0f766e',
-    points: getGraphData(observations, 'speed'),
-    title: 'Speed vs Torque',
-    yAxisLabel: 'Speed (RPM)',
+    points: getTorqueSpeedPoints(observations),
+    title: 'Torque vs Speed',
+    yAxisLabel: 'Torque (N-m)',
   })
-  const powerGraphSvg = createReportGraphSvg({
-    ariaLabel: 'Total input power versus torque graph',
-    color: '#b45309',
-    points: getGraphData(observations, 'power'),
-    title: 'Total Input Power vs Torque',
-    yAxisLabel: 'Total Input Power (kW)',
-  })
-
   const css = `
 body {
   margin: 0;
@@ -581,7 +489,7 @@ tr:nth-child(even) {
 }
 .graphs-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: 14px;
 }
 .report-graph-card {
@@ -1189,7 +1097,7 @@ tr:nth-child(even) {
           <li>Connecting leads</li>
         </ul>
         <p><strong>Torque:</strong> T = (W1 − W2) × 0.075 × 9.81 N·m.</p>
-        <p>VR, VY, VB are phase voltages; IR, IY, IB are phase currents. P is total three-phase input power.</p>
+        <p>V<sub>R</sub>, V<sub>Y</sub>, V<sub>B</sub> are phase voltages; I<sub>R</sub>, I<sub>Y</sub>, I<sub>B</sub> are phase currents. P is total three-phase input power.</p>
         <br>
       </div>
 
@@ -1200,7 +1108,7 @@ tr:nth-child(even) {
             <h3>Observation Table</h3>
             <div class="table-shell">
               <table class="report-observation-table">
-                <thead><tr>${OBSERVATION_COLUMNS.map(({ label, unit }) => '<th>' + escapeHtml(label) + (unit ? '<br>(' + escapeHtml(unit) + ')' : '') + '</th>').join('')}</tr></thead>
+                <thead><tr>${OBSERVATION_COLUMNS.map(({ label, subscript, unit }) => '<th>' + escapeHtml(label) + (subscript ? '<sub>' + escapeHtml(subscript) + '</sub>' : '') + (unit ? '<br>(' + escapeHtml(unit) + ')' : '') + '</th>').join('')}</tr></thead>
                 <tbody>${observationRows}</tbody>
               </table>
             </div>
@@ -1220,15 +1128,11 @@ tr:nth-child(even) {
 
     <div class="report-page report-page--graphs">
       <div class="section results-section">
-        <h2>Graphs and Conclusion</h2>
+        <h2>Graph and Conclusion</h2>
         <div class="graphs-grid">
           <div class="results-card report-graph-card">
-            <h3>Speed vs Torque</h3>
-            <div class="report-graph">${speedGraphSvg}</div>
-          </div>
-          <div class="results-card report-graph-card">
-            <h3>Total Input Power vs Torque</h3>
-            <div class="report-graph">${powerGraphSvg}</div>
+            <h3>Torque vs Speed</h3>
+            <div class="report-graph">${torqueSpeedGraphSvg}</div>
           </div>
         </div>
         <br>

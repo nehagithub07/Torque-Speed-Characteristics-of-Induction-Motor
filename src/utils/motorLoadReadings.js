@@ -27,15 +27,15 @@ export const createMotorObservation = ({ id, loadLevel }) => ({ id, ...getMotorL
 
 export const OBSERVATION_COLUMNS = [
   { key: 'id', label: 'S.No.', unit: '' },
-  { key: 'vr', label: 'VR', unit: 'V' },
-  { key: 'vy', label: 'VY', unit: 'V' },
-  { key: 'vb', label: 'VB', unit: 'V' },
-  { key: 'ir', label: 'IR', unit: 'A' },
-  { key: 'iy', label: 'IY', unit: 'A' },
-  { key: 'ib', label: 'IB', unit: 'A' },
+  { key: 'vr', label: 'V', subscript: 'R', unit: 'V' },
+  { key: 'vy', label: 'V', subscript: 'Y', unit: 'V' },
+  { key: 'vb', label: 'V', subscript: 'B', unit: 'V' },
+  { key: 'ir', label: 'I', subscript: 'R', unit: 'A' },
+  { key: 'iy', label: 'I', subscript: 'Y', unit: 'A' },
+  { key: 'ib', label: 'I', subscript: 'B', unit: 'A' },
   { key: 'power', label: 'P', unit: 'kW' },
-  { key: 'w1', label: 'W1', unit: 'kg' },
-  { key: 'w2', label: 'W2', unit: 'kg' },
+  { key: 'w1', label: 'W', subscript: '1', unit: 'kg' },
+  { key: 'w2', label: 'W', subscript: '2', unit: 'kg' },
   { key: 'torque', label: 'T', unit: 'N·m' },
   { key: 'speed', label: 'Speed', unit: 'RPM' },
 ]

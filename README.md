@@ -5,14 +5,18 @@ the MCB, and click the autotransformer knob to set the **400 V line supply**.
 The analyser shows phase RMS voltage/current and total three-phase power at 50 Hz.
 
 Click **ADD** to save the no-load reading. Then click the hand beside the rig:
-it moves to and turns the top handle, advances to the next supplied image, and
+it moves to and turns the top handle, advances to the next load, and
 updates the analyser and mechanical readings. Wait for the animation to finish,
 click ADD, and repeat until all six conditions are saved. Each stage must be
 recorded before advancing; repeated clicks cannot skip a load. RESET cancels a
 running animation and clears the load, readings, supply, and wiring.
 
 `src/assets/1.png` through `6.png` correspond to W1/W2 weights **0/0, 7.5/2,
-12/2.5, 16/5, 20/6, 22.5/7 kg**. Measurements are in
+12/2.5, 16/5, 20/6, 22.5/7 kg**. The original files are retained as references.
+The simulation uses `1.png` as a shared apparatus base, with SVG spring-weight
+dials driven by the readings, so the frame, motor, size, and color stay identical
+at every load. The textured brake belt progressively tightens as the hand turns
+the handle and retains its tension until the next load or RESET. Measurements are in
 `src/utils/motorLoadReadings.js`; the observation table and report share the same
 12-column definition. Torque uses **T = (W1 − W2) × 0.075 × 9.81 N·m** and is
 truncated to two decimals to match the supplied table exactly. The supplied

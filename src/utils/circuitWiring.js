@@ -113,7 +113,8 @@ export const getCurrentProbePaths = (source, wireStart, wireEnd, phase, width) =
   const angle = [Math.PI * 0.65, Math.PI * 0.15, -Math.PI / 2][phase]
   const endX = x + Math.cos(angle) * radius
   const endY = y + Math.sin(angle) * radius
-  const sweepY = y + [56, 15, -95][phase]
+  // Sweep terminal 15's blue lead below the spring-weight dials.
+  const sweepY = y + [56, 15, 45][phase]
 
   return {
     lead: `M ${source.x} ${source.y} C ${right} ${source.y}, ${right} ${source.y + 65}, ${right} ${turnY} C ${right} ${sweepY}, ${x + 95} ${sweepY}, ${endX} ${endY}`,

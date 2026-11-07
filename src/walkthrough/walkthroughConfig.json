@@ -180,10 +180,10 @@
       "id": 20,
       "target": "#results-graphs-panel",
       "title": {
-        "en": "Graphs"
+        "en": "Graph"
       },
       "description": {
-        "en": "Plot speed versus torque and total input power versus torque after recording all six load conditions."
+        "en": "After recording all six load conditions, plot torque (N-m) on the Y-axis against speed (RPM) on the X-axis."
       },
       "audio": null,
       "placement": "top"
@@ -207,7 +207,7 @@
         "en": "Generate Report"
       },
       "description": {
-        "en": "The Report button generates a summarised report of the simulation. After completing the observation table and plotting the graphs, generate the report. The report will include the time taken to complete the simulation, simulation summary, the apparatus used, recorded readings, graphs and conclusion."
+        "en": "The Report button generates a summarised report of the simulation. After completing the observation table and plotting the graph, generate the report. The report will include the time taken to complete the simulation, simulation summary, the apparatus used, recorded readings, the graph and conclusion."
       },
       "audio": "/walkthrough-audios/Generate%20Report%20.wav",
       "placement": "right"
