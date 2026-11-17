@@ -17,26 +17,20 @@
 
 #app-scale {
   --app-scale: 1;
-  --app-render-scale: 1;
   position: absolute;
   top: 0;
   left: 0;
   width: 1440px;
-  height: 1450px;
-  transform: scale(calc(var(--app-scale) / var(--app-render-scale)));
+  height: auto;
+  transform: scale(var(--app-scale));
   transform-origin: top left;
   contain: layout style;
 }
 
 #app-render {
-  position: absolute;
-  top: 0;
-  left: 0;
+  position: relative;
   width: 1440px;
-  height: 1450px;
-  transform: scale(var(--app-render-scale));
-  transform-origin: top left;
-  will-change: transform;
+  height: auto;
 }
 
 .simulation-shell {

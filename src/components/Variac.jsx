@@ -8,7 +8,8 @@ import { LINE_VOLTAGE } from '../utils/motorLoadReadings.js'
 
 const OUTPUT_VOLTAGE = LINE_VOLTAGE
 const MIN_KNOB_ROTATION = -45
-const MAX_KNOB_ROTATION = 93
+// The asset's triangular pointer faces left; 198deg aligns it with the 400 V tick.
+const MAX_KNOB_ROTATION = 198
 
 const clamp = (value, min, max) => Math.min(Math.max(value, min), max)
 

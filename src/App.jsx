@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import './App.css'
 import './ConnectionEndpoints.css'
 import './MotorLoadLab.css'
@@ -30,15 +30,12 @@ const BASE_WIDTH = 1440
 const BASE_HEIGHT = 960
 const GRAPH_SECTION_GAP = 28
 const RESULTS_GRAPH_SECTION_HEIGHT = 430
-const FOOTER_HEIGHT = 32
+const FOOTER_HEIGHT = 40
 const CONTENT_HEIGHT = BASE_HEIGHT
   + GRAPH_SECTION_GAP
   + RESULTS_GRAPH_SECTION_HEIGHT
   + FOOTER_HEIGHT
 const PANEL_MAX_SCALE = 1
-const PANEL_VIEWPORT_MARGIN = 32
-const MIN_RENDER_SCALE = 2
-const MAX_RENDER_SCALE = 3
 const MAX_OBSERVATIONS = MAX_MOTOR_LOAD_LEVEL + 1
 const MIN_GRAPH_READINGS = MAX_OBSERVATIONS
 const REQUIRED_CONNECTION_COUNT = REQUIRED_CONNECTIONS.length
@@ -176,32 +173,15 @@ const getCheckResultAudio = (result) => {
   return SIMULATION_AUDIO.multipleWrongConnections
 }
 
-const getScale = () => {
+const getScale = (containerWidth) => {
   if (typeof window === 'undefined') {
     return 1
   }
 
-  const widthScale = (window.innerWidth - PANEL_VIEWPORT_MARGIN) / BASE_WIDTH
-
-  return Math.max(Math.min(widthScale, PANEL_MAX_SCALE), 0.1)
+  // The layout viewport keeps browser pinch zoom available for small controls.
+  const availableWidth = containerWidth ?? document.documentElement.clientWidth
+  return Math.min(Math.max(availableWidth, 1) / BASE_WIDTH, PANEL_MAX_SCALE)
 }
-
-const getRenderScale = () => {
-  if (typeof window === 'undefined') {
-    return MIN_RENDER_SCALE
-  }
-
-  const dpr = Number.isFinite(window.devicePixelRatio)
-    ? window.devicePixelRatio
-    : 1
-
-  return Math.min(Math.max(Math.ceil(dpr), MIN_RENDER_SCALE), MAX_RENDER_SCALE)
-}
-
-const getViewportMetrics = () => ({
-  renderScale: getRenderScale(),
-  scale: getScale(),
-})
 
 const App = () => {
   const { clearAlerts, showStepAlert } = useLabAlerts()
@@ -210,8 +190,8 @@ const App = () => {
     playSequence: playSimulationAudioSequence,
     stop: stopSimulationAudio,
   } = useQueuedAudioPlayer()
-  const [viewportMetrics, setViewportMetrics] = useState(getViewportMetrics)
-  const { renderScale, scale } = viewportMetrics
+  const wrapperRef = useRef(null)
+  const [scale, setScale] = useState(getScale)
   const [voltage, setVoltage] = useState(0)
   const [powerOn, setPowerOn] = useState(false)
   const [activeLoadLevel, setActiveLoadLevel] = useState(0)
@@ -234,13 +214,15 @@ const App = () => {
   const firstEmptyCheckPromptPlayedRef = useRef(false)
   const validateConnectionsRef = useRef(null)
 
-  useEffect(() => {
-    const handleResize = () => setViewportMetrics(getViewportMetrics())
+  useLayoutEffect(() => {
+    const wrapper = wrapperRef.current
+    const updateScale = () => setScale(getScale(wrapper.clientWidth))
+    const observer = new ResizeObserver(updateScale)
 
-    handleResize()
-    window.addEventListener('resize', handleResize)
+    updateScale()
+    observer.observe(wrapper)
 
-    return () => window.removeEventListener('resize', handleResize)
+    return () => observer.disconnect()
   }, [])
 
   const reading = getMotorLoadReading(activeLoadLevel)
@@ -725,7 +707,7 @@ const App = () => {
   }, [])
 
   return (
-    <div id="app-wrapper">
+    <div id="app-wrapper" ref={wrapperRef}>
       <div
         id="app-viewport"
         style={{
@@ -737,9 +719,6 @@ const App = () => {
           id="app-scale"
           style={{
             '--app-scale': scale,
-            '--app-render-scale': renderScale,
-            height: `${CONTENT_HEIGHT * renderScale}px`,
-            width: `${BASE_WIDTH * renderScale}px`,
           }}
         >
           <div id="app-render">

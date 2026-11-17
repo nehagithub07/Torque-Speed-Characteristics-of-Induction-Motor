@@ -7,6 +7,9 @@ import { getMotorLoadReading, MAX_MOTOR_LOAD_LEVEL } from '../utils/motorLoadRea
 
 const SPRING_SCALE_MAX_KG = 50
 const springScaleTicks = Array.from({ length: SPRING_SCALE_MAX_KG }, (_, value) => value)
+// Project the handle's horizontal turn around the fixed spindle and collar.
+const HANDLE_ARMS = 'M 350 55 H 445 L 518 125 V 158 L 350 122 Z M 665 55 H 760 V 120 L 596 158 V 125 Z'
+const HANDLE_TURN_PER_LOAD = 60
 
 const SpringWeightDial = ({ cx, weight, label, faceFill }) => (
   <g className="spring-weight-dial" transform={`translate(${cx} 630)`} data-gauge={label} data-weight={weight}>
@@ -45,6 +48,7 @@ const Pulley = ({
   const [beltTargetLoad, setBeltTargetLoad] = useState(null)
   const dialFaceId = useId()
   const reading = getMotorLoadReading(loadLevel)
+  const handleLoad = beltTargetLoad ?? reading.loadLevel
 
   useEffect(() => () => timersRef.current.forEach(clearTimeout), [])
 
@@ -66,7 +70,14 @@ const Pulley = ({
   }
 
   return (
-    <article className={`pulley-device ${turning ? 'pulley-device--turning' : ''}`} id="pulley-device" aria-label="Pulley and brake-load assembly">
+    <article
+      className={`pulley-device ${turning ? 'pulley-device--turning' : ''}`}
+      id="pulley-device"
+      aria-label="Pulley and brake-load assembly"
+      style={{
+        '--pulley-handle-angle': `${handleLoad * HANDLE_TURN_PER_LOAD}deg`,
+      }}
+    >
       <div className="pulley-device__image-frame">
         <svg
           role="img"
@@ -77,12 +88,27 @@ const Pulley = ({
           focusable="false"
         >
           <defs>
+            <clipPath id={`${dialFaceId}-handle-arms`}>
+              <path d={HANDLE_ARMS} />
+            </clipPath>
+            <mask id={`${dialFaceId}-fixed-apparatus`} maskUnits="userSpaceOnUse" x="0" y="0" width="1086" height="1448">
+              <rect width="1086" height="1448" fill="white" />
+              <path d={HANDLE_ARMS} fill="black" />
+            </mask>
             <radialGradient id={dialFaceId} cx="35%" cy="30%" r="75%">
               <stop offset="0" stopColor="#fffdf1" />
               <stop offset="1" stopColor="#ece2c1" />
             </radialGradient>
           </defs>
-          <BrakeBelt imageSrc={pulleyBase} loadLevel={beltTargetLoad ?? reading.loadLevel} />
+          <g mask={`url(#${dialFaceId}-fixed-apparatus)`}>
+            <BrakeBelt imageSrc={pulleyBase} loadLevel={handleLoad} />
+          </g>
+          <g
+            className="pulley-handle__rotation"
+            data-handle-load={handleLoad}
+          >
+            <image href={pulleyBase} width="1086" height="1448" clipPath={`url(#${dialFaceId}-handle-arms)`} />
+          </g>
           <SpringWeightDial cx={365} label="W1" weight={reading.w1} faceFill={`url(#${dialFaceId})`} />
           <SpringWeightDial cx={751} label="W2" weight={reading.w2} faceFill={`url(#${dialFaceId})`} />
         </svg>
