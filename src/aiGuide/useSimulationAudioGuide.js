@@ -67,8 +67,8 @@ export const useSimulationAudioGuide = ({
   const phaseRef = useRef(phase)
   const runIdRef = useRef(0)
   const walkthroughOpenedForGuideRef = useRef(false)
-  const wrongConnectionAudioPauseRef = useRef(null)
-  const wrongConnectionRequestIdRef = useRef(0)
+  const feedbackAudioPauseRef = useRef(null)
+  const feedbackRequestIdRef = useRef(0)
 
   useEffect(() => {
     phaseRef.current = phase
@@ -96,56 +96,49 @@ export const useSimulationAudioGuide = ({
     pendingConnection.resolve(matched)
   }, [])
 
-  const beginWrongConnectionAudio = useCallback(() => {
-    const requestId = wrongConnectionRequestIdRef.current + 1
+  const beginFeedbackAudio = useCallback(() => {
+    const requestId = feedbackRequestIdRef.current + 1
 
-    wrongConnectionRequestIdRef.current = requestId
+    feedbackRequestIdRef.current = requestId
 
-    if (!wrongConnectionAudioPauseRef.current) {
+    if (!feedbackAudioPauseRef.current) {
       let resolvePause
       const promise = new Promise((resolve) => {
         resolvePause = resolve
       })
 
-      wrongConnectionAudioPauseRef.current = {
+      feedbackAudioPauseRef.current = {
         promise,
         resolve: resolvePause,
       }
     }
 
-    return {
-      hasActiveConnection: (
-        phaseRef.current === GUIDE_PHASE_TERMINALS
-        && Boolean(activeConnectionStepRef.current)
-      ),
-      requestId,
-      terminalGuideActive: phaseRef.current === GUIDE_PHASE_TERMINALS,
-    }
+    return requestId
   }, [])
 
-  const finishWrongConnectionAudio = useCallback((requestId) => {
-    if (wrongConnectionRequestIdRef.current !== requestId) {
+  const finishFeedbackAudio = useCallback((requestId) => {
+    if (feedbackRequestIdRef.current !== requestId) {
       return
     }
 
-    const pause = wrongConnectionAudioPauseRef.current
+    const pause = feedbackAudioPauseRef.current
 
-    wrongConnectionAudioPauseRef.current = null
+    feedbackAudioPauseRef.current = null
     pause?.resolve()
   }, [])
 
-  const clearWrongConnectionAudioPause = useCallback(() => {
-    wrongConnectionRequestIdRef.current += 1
+  const clearFeedbackAudioPause = useCallback(() => {
+    feedbackRequestIdRef.current += 1
 
-    const pause = wrongConnectionAudioPauseRef.current
+    const pause = feedbackAudioPauseRef.current
 
-    wrongConnectionAudioPauseRef.current = null
+    feedbackAudioPauseRef.current = null
     pause?.resolve()
   }, [])
 
-  const waitForWrongConnectionAudio = useCallback(async () => {
-    while (wrongConnectionAudioPauseRef.current) {
-      await wrongConnectionAudioPauseRef.current.promise
+  const waitForFeedbackAudio = useCallback(async () => {
+    while (feedbackAudioPauseRef.current) {
+      await feedbackAudioPauseRef.current.promise
     }
   }, [])
 
@@ -153,7 +146,7 @@ export const useSimulationAudioGuide = ({
     runIdRef.current += 1
     phaseRef.current = GUIDE_PHASE_IDLE
     activeConnectionStepRef.current = null
-    clearWrongConnectionAudioPause()
+    clearFeedbackAudioPause()
     stopCurrentPlayback()
     resolvePendingConnection(false)
     completedConnectionKeysRef.current = new Set()
@@ -164,7 +157,7 @@ export const useSimulationAudioGuide = ({
     walkthroughOpenedForGuideRef.current = false
     onStop?.()
   }, [
-    clearWrongConnectionAudioPause,
+    clearFeedbackAudioPause,
     onStop,
     resolvePendingConnection,
     stopCurrentPlayback,
@@ -174,14 +167,14 @@ export const useSimulationAudioGuide = ({
     runIdRef.current += 1
     phaseRef.current = GUIDE_PHASE_EXPERIMENT
     activeConnectionStepRef.current = null
-    clearWrongConnectionAudioPause()
+    clearFeedbackAudioPause()
     stopCurrentPlayback()
     resolvePendingConnection(false)
     setActiveConnection(null)
     setHighlightedTerminalIds([])
     setPhase(GUIDE_PHASE_EXPERIMENT)
     walkthroughOpenedForGuideRef.current = false
-  }, [clearWrongConnectionAudioPause, resolvePendingConnection, stopCurrentPlayback])
+  }, [clearFeedbackAudioPause, resolvePendingConnection, stopCurrentPlayback])
 
   const playAudio = useCallback((audioSource) => new Promise((resolve, reject) => {
     stopCurrentPlayback()
@@ -313,28 +306,22 @@ export const useSimulationAudioGuide = ({
     await speakText(text)
   }, [playAudio, speakText])
 
-  const playWrongConnectionSequence = useCallback(async () => {
+  const playFeedback = useCallback(async (narration) => {
     const runId = runIdRef.current
     const connectionStep = activeConnectionStepRef.current
-
-    if (phaseRef.current !== GUIDE_PHASE_TERMINALS) {
-      return false
-    }
-
-    const { requestId } = beginWrongConnectionAudio()
+    const requestId = beginFeedbackAudio()
 
     try {
-      await playNarration({
-        audio: SIMULATION_AUDIO.wrongConnection,
-        text: SIMULATION_MESSAGES.wrongConnection,
-      })
+      onStatus?.(narration.text)
+      await playNarration(narration)
 
       if (
-        wrongConnectionRequestIdRef.current !== requestId
+        feedbackRequestIdRef.current !== requestId
         || runIdRef.current !== runId
         || phaseRef.current !== GUIDE_PHASE_TERMINALS
         || !connectionStep
         || activeConnectionStepRef.current?.key !== connectionStep.key
+        || completedConnectionKeysRef.current.has(connectionStep.key)
       ) {
         return true
       }
@@ -344,23 +331,34 @@ export const useSimulationAudioGuide = ({
       await playNarration(connectionStep)
     } catch (error) {
       if (
-        wrongConnectionRequestIdRef.current === requestId
+        feedbackRequestIdRef.current === requestId
         && runIdRef.current === runId
       ) {
         onError?.(error)
       }
     } finally {
-      finishWrongConnectionAudio(requestId)
+      finishFeedbackAudio(requestId)
     }
 
     return true
   }, [
-    beginWrongConnectionAudio,
-    finishWrongConnectionAudio,
+    beginFeedbackAudio,
+    finishFeedbackAudio,
     onError,
     onStatus,
     playNarration,
   ])
+
+  const playWrongConnectionSequence = useCallback(() => {
+    if (phaseRef.current !== GUIDE_PHASE_TERMINALS) {
+      return Promise.resolve(false)
+    }
+
+    return playFeedback({
+      audio: SIMULATION_AUDIO.wrongConnection,
+      text: SIMULATION_MESSAGES.wrongConnection,
+    })
+  }, [playFeedback])
 
   const waitForConnection = useCallback((connectionStep, runId) => {
     if (completedConnectionKeysRef.current.has(connectionStep.key)) {
@@ -385,7 +383,7 @@ export const useSimulationAudioGuide = ({
     onStatus?.(SIMULATION_MESSAGES.walkthroughComplete)
 
     try {
-      await waitForWrongConnectionAudio()
+      await waitForFeedbackAudio()
 
       if (runIdRef.current !== runId) {
         return
@@ -396,7 +394,7 @@ export const useSimulationAudioGuide = ({
         text: SIMULATION_MESSAGES.walkthroughComplete,
       })
 
-      await waitForWrongConnectionAudio()
+      await waitForFeedbackAudio()
 
       if (runIdRef.current !== runId) {
         return
@@ -409,7 +407,7 @@ export const useSimulationAudioGuide = ({
           continue
         }
 
-        await waitForWrongConnectionAudio()
+        await waitForFeedbackAudio()
 
         if (runIdRef.current !== runId) {
           return
@@ -432,7 +430,7 @@ export const useSimulationAudioGuide = ({
           return
         }
 
-        await waitForWrongConnectionAudio()
+        await waitForFeedbackAudio()
 
         if (runIdRef.current !== runId) {
           return
@@ -447,9 +445,9 @@ export const useSimulationAudioGuide = ({
             text: SIMULATION_MESSAGES.nextConnection,
           })
 
-          await waitForWrongConnectionAudio()
+          await waitForFeedbackAudio()
           await wait(GUIDE_STEP_GAP_MS)
-          await waitForWrongConnectionAudio()
+          await waitForFeedbackAudio()
         }
 
         if (runIdRef.current !== runId) {
@@ -457,7 +455,7 @@ export const useSimulationAudioGuide = ({
         }
       }
 
-      await waitForWrongConnectionAudio()
+      await waitForFeedbackAudio()
 
       if (runIdRef.current !== runId) {
         return
@@ -473,7 +471,7 @@ export const useSimulationAudioGuide = ({
         text: SIMULATION_MESSAGES.allGuideConnectionsComplete,
       })
 
-      await waitForWrongConnectionAudio()
+      await waitForFeedbackAudio()
 
       if (runIdRef.current !== runId) {
         return
@@ -503,7 +501,7 @@ export const useSimulationAudioGuide = ({
     onStatus,
     playNarration,
     waitForConnection,
-    waitForWrongConnectionAudio,
+    waitForFeedbackAudio,
   ])
 
   const start = useCallback(async ({ completedConnections = [], narration = null } = {}) => {
@@ -536,7 +534,7 @@ export const useSimulationAudioGuide = ({
         text: SIMULATION_MESSAGES.aiGuideClick,
       })
 
-      await waitForWrongConnectionAudio()
+      await waitForFeedbackAudio()
 
       if (runIdRef.current !== runId) {
         return
@@ -554,7 +552,7 @@ export const useSimulationAudioGuide = ({
       setPhase(GUIDE_PHASE_IDLE)
       onError?.(error)
     }
-  }, [onError, onStart, onStatus, playNarration, stop, waitForWrongConnectionAudio])
+  }, [onError, onStart, onStatus, playNarration, stop, waitForFeedbackAudio])
 
   const handleConnectionComplete = useCallback((terminalIds) => {
     if (!terminalIds?.length) {
@@ -568,7 +566,7 @@ export const useSimulationAudioGuide = ({
     if (
       phaseRef.current === GUIDE_PHASE_TERMINALS
       && activeConnectionStepRef.current?.key === connectionKey
-      && !wrongConnectionAudioPauseRef.current
+      && !feedbackAudioPauseRef.current
     ) {
       stopCurrentPlayback()
     }
@@ -606,11 +604,11 @@ export const useSimulationAudioGuide = ({
   useEffect(() => () => {
     runIdRef.current += 1
     activeConnectionStepRef.current = null
-    clearWrongConnectionAudioPause()
+    clearFeedbackAudioPause()
     stopCurrentPlayback()
     resolvePendingConnection(false)
   }, [
-    clearWrongConnectionAudioPause,
+    clearFeedbackAudioPause,
     resolvePendingConnection,
     stopCurrentPlayback,
   ])
@@ -621,6 +619,7 @@ export const useSimulationAudioGuide = ({
     highlightedTerminalIds,
     isPlaying: phase !== GUIDE_PHASE_IDLE,
     phase,
+    playFeedback,
     playWrongConnectionSequence,
     start,
     stop,

@@ -308,6 +308,7 @@ const App = () => {
     highlightedTerminalIds: aiGuideHighlightedTerminalIds,
     isPlaying: aiGuidePlaying,
     onConnectionComplete: handleAiGuideConnectionComplete,
+    playFeedback: playAiGuideFeedback,
     playWrongConnectionSequence: playAiGuideWrongConnectionSequence,
     start: startAiGuide,
     stop: stopAiGuide,
@@ -319,6 +320,20 @@ const App = () => {
     onStop: handleAiGuideStop,
   })
 
+  const showConnectionAlert = useCallback((preset, overrides = {}) => {
+    const alert = { ...preset, ...overrides }
+    setStatus(alert.description)
+
+    if (aiGuidePlaying) {
+      // Let the guide pause and resume its connection step around the alert audio.
+      showStepAlert(alert, { audio: null })
+      playAiGuideFeedback({ audio: alert.audio, text: alert.description })
+      return
+    }
+
+    showStepAlert(alert)
+  }, [aiGuidePlaying, playAiGuideFeedback, showStepAlert])
+
   const handleAiGuide = useCallback(() => {
     if (aiGuidePlaying) {
       stopAiGuide()
@@ -326,7 +341,10 @@ const App = () => {
     }
 
     stopSimulationAudio()
-    let prompt = null
+    let prompt = wiringProgress.isCorrect ? {
+      audio: SIMULATION_AUDIO.allGuideConnectionsComplete,
+      description: SIMULATION_MESSAGES.allGuideConnectionsComplete,
+    } : null
     if (connectionsVerified) {
       prompt = EXPERIMENT_ALERTS.connectionsVerified
       if (powerOn) prompt = EXPERIMENT_ALERTS.powerOn
@@ -513,8 +531,7 @@ const App = () => {
       setConnectionsLocked(true)
       setConnectionsVerified(true)
 
-      setStatus('Connections Verified successfully. Now turn ON the MCB by clicking the MCB lever.')
-      showStepAlert(EXPERIMENT_ALERTS.connectionsVerified)
+      showConnectionAlert(EXPERIMENT_ALERTS.connectionsVerified)
 
       return
     }
@@ -522,11 +539,7 @@ const App = () => {
     setConnectionsVerified(false)
 
     if (result.totalConnections === 0) {
-      setStatus('Please make the connections first.')
-      showStepAlert(EXPERIMENT_ALERTS.connectionErrorFound, {
-        audio: checkResultAudio,
-        type: 'warning',
-      })
+      showConnectionAlert(EXPERIMENT_ALERTS.firstCheckWithoutConnections)
       return
     }
 
@@ -536,8 +549,7 @@ const App = () => {
         ? 'Wrong Connection'
         : 'Wrong Connections'
 
-      setStatus(description)
-      showStepAlert(EXPERIMENT_ALERTS.connectionErrorFound, {
+      showConnectionAlert(EXPERIMENT_ALERTS.connectionErrorFound, {
         audio: checkResultAudio,
         description,
         target: '#connection-lab',
@@ -549,8 +561,7 @@ const App = () => {
     if (result.missingConnections?.length > 0) {
       const description = getMissingConnectionDescription(result)
 
-      setStatus(description)
-      showStepAlert(EXPERIMENT_ALERTS.connectionErrorFound, {
+      showConnectionAlert(EXPERIMENT_ALERTS.connectionErrorFound, {
         audio: checkResultAudio,
         description,
         target: '#connection-lab',
@@ -560,14 +571,11 @@ const App = () => {
       return
     }
 
-    setStatus(
-      `Invalid connections. Correct matched points: ${result.matchedCount}; total wires: ${result.totalConnections}.`,
-    )
-    showStepAlert(EXPERIMENT_ALERTS.connectionErrorFound, {
+    showConnectionAlert(EXPERIMENT_ALERTS.connectionErrorFound, {
       audio: checkResultAudio,
       description: `Matched ${result.matchedCount} of ${REQUIRED_CONNECTION_COUNT} required wire pairs from ${result.totalConnections} total wires.`,
     })
-  }, [aiGuidePlaying, continueAiGuideExperiment, showStepAlert])
+  }, [aiGuidePlaying, continueAiGuideExperiment, showConnectionAlert])
 
   const handleCheck = () => {
     const validateConnections = validateConnectionsRef.current
@@ -598,6 +606,7 @@ const App = () => {
   )
 
   const handleWrongConnectionMade = useCallback(async () => {
+    setStatus(SIMULATION_MESSAGES.wrongConnection)
     const currentManualConnectionAudio = expectedManualConnectionPair
       ? CONNECTION_AUDIO_BY_LABEL[expectedManualConnectionPair]
       : null
@@ -623,8 +632,7 @@ const App = () => {
 
   const handleTogglePower = () => {
     if (!powerOn && !connectionsVerified) {
-      setStatus('Make and check the connections before turning ON the MCB.')
-      showStepAlert(EXPERIMENT_ALERTS.makeConnectionsBeforeMcb)
+      showConnectionAlert(EXPERIMENT_ALERTS.makeConnectionsBeforeMcb)
       return
     }
 
@@ -654,17 +662,15 @@ const App = () => {
     setConnectionsLocked(true)
     setConnectionsVerified(true)
 
-    setStatus(SIMULATION_MESSAGES.autoConnect)
-    showStepAlert(EXPERIMENT_ALERTS.circuitConnectionsCompleted)
+    showConnectionAlert(EXPERIMENT_ALERTS.circuitConnectionsCompleted)
   }
 
   const handleVoltageControlBlocked = useCallback(() => {
     const alert = connectionsVerified
       ? EXPERIMENT_ALERTS.switchOnMcbBeforeAutotransformer
       : EXPERIMENT_ALERTS.completeConnectionsBeforeAutotransformer
-    setStatus(alert.description)
-    showStepAlert(alert)
-  }, [connectionsVerified, showStepAlert])
+    showConnectionAlert(alert)
+  }, [connectionsVerified, showConnectionAlert])
 
   const handleVoltageChange = useCallback((nextVoltage) => {
     setVoltage(nextVoltage)

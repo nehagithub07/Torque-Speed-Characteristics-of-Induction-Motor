@@ -1,4 +1,10 @@
 import aiGuideConfig from '../aiGuide/aiGuideConfig.json'
+import allGuideConnectionsComplete from './Guide all complete conn.wav'
+import autoConnect from './Autoconnect.wav'
+import beforeConnectionMcbAlert from './Before connection, on-click MCB Alert.wav'
+import firstCheckClick from './1st time check button click.wav'
+import forCorrectConnectionsCheckClick from './For correct connections, check click.wav'
+import wrongConnection from './Wrong connection.wav'
 
 const motorAudioFiles = import.meta.glob('./*.wav', {
   eager: true,
@@ -16,16 +22,16 @@ export const SIMULATION_MESSAGES = aiGuideConfig.messages
 export const SIMULATION_AUDIO = {
   afterVoltageSet: simulationAudioUrl('After Voltage is set.wav'),
   aiGuideClick: simulationAudioUrl('AI Guide click.wav'),
-  allGuideConnectionsComplete: simulationAudioUrl('Guide all complete conn.wav'),
-  autoConnect: simulationAudioUrl('Autoconnect.wav'),
+  allGuideConnectionsComplete,
+  autoConnect,
   autotransformerBlocked: simulationAudioUrl('Autotransformer click after check disabled.wav'),
-  beforeConnectionMcbAlert: simulationAudioUrl('Before connection, on-click MCB Alert.wav'),
+  beforeConnectionMcbAlert,
   duplicateReading: simulationAudioUrl('Duplicate Readings.wav'),
-  firstCheckClick: simulationAudioUrl('1st time check button click.wav'),
+  firstCheckClick,
   firstHandClick: simulationAudioUrl('1st hand icon click.wav'),
   firstReadingAdded: simulationAudioUrl('1st reading added.wav'),
   firstTimeAutotransformerClick: simulationAudioUrl('1st time autotransformer click.wav'),
-  forCorrectConnectionsCheckClick: simulationAudioUrl('For correct connections, check click.wav'),
+  forCorrectConnectionsCheckClick,
   generateReportClick: simulationAudioUrl('Generate Report button click.wav'),
   graphPlotted: simulationAudioUrl('Graph Plotted Successfully.wav'),
   mcbOn: simulationAudioUrl('MCB ON.wav'),
@@ -38,7 +44,7 @@ export const SIMULATION_AUDIO = {
   sixthReadingAdded: simulationAudioUrl('6th reading added.wav'),
   thirdReadingAdded: simulationAudioUrl('3rd reading added.wav'),
   walkthroughComplete: simulationAudioUrl('The interface walkthrough is now complete.wav'),
-  wrongConnection: simulationAudioUrl('Wrong connection.wav'),
+  wrongConnection,
 }
 
 export const CONNECTION_AUDIO_BY_LABEL = {

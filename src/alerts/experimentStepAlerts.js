@@ -23,6 +23,14 @@ export const EXPERIMENT_ALERTS = {
     title: 'Incomplete Connections',
     type: 'error',
   },
+  firstCheckWithoutConnections: {
+    audio: SIMULATION_AUDIO.firstCheckClick,
+    description: SIMULATION_MESSAGES.firstCheckClick,
+    duration: 6500,
+    target: '#connection-lab',
+    title: 'Incomplete Connections',
+    type: 'warning',
+  },
   powerOn: {
     audio: SIMULATION_AUDIO.mcbOn,
     description: SIMULATION_MESSAGES.mcbOn,
@@ -45,6 +53,7 @@ export const EXPERIMENT_ALERTS = {
     type: 'warning',
   },
   completeConnectionsBeforeAutotransformer: {
+    audio: SIMULATION_AUDIO.firstTimeAutotransformerClick,
     description: SIMULATION_MESSAGES.firstTimeAutotransformerClick,
     target: '#connection-lab',
     title: 'Autotransformer OFF',
