@@ -10,10 +10,10 @@ import HeaderBoard from './components/HeaderBoard.jsx'
 import ReportControls from './components/ReportControls.jsx'
 import ResultsGraphs from './components/ResultsGraphs.jsx'
 import WalkthroughStartButton from './walkthrough/components/WalkthroughStartButton.jsx'
-import { EXPERIMENT_ALERTS } from './alerts/experimentStepAlerts.js'
+import { EXPERIMENT_ALERTS, READING_ADDED_ALERTS } from './alerts/experimentStepAlerts.js'
 import { useLabAlerts } from './alerts/useLabAlerts.js'
 import { useSimulationAudioGuide } from './aiGuide/useSimulationAudioGuide.js'
-import { CONNECTION_AUDIO_BY_LABEL, SIMULATION_AUDIO } from './audio/simulationAudio.js'
+import { CONNECTION_AUDIO_BY_LABEL, SIMULATION_AUDIO, SIMULATION_MESSAGES } from './audio/simulationAudio.js'
 import { useQueuedAudioPlayer } from './audio/useQueuedAudioPlayer.js'
 // import StatusBar from './components/StatusBar.jsx'
  
@@ -60,11 +60,13 @@ const getWiringProgressSignature = (progress = EMPTY_WIRING_PROGRESS) => (
 
 const getActiveInstruction = ({
   connectionsVerified,
+  graphGenerated,
   normalizedVoltage,
   powerOn,
   wiringProgress,
   readingCount,
   hasDuplicateReading,
+  reportGenerated,
 }) => {
   if (!connectionsVerified) {
     const totalConnections = wiringProgress?.totalConnections ?? 0
@@ -98,9 +100,19 @@ const getActiveInstruction = ({
     }
   }
 
+  if (readingCount >= MAX_OBSERVATIONS) {
+    let stepId = 'plot'
+    if (graphGenerated) stepId = 'report'
+    if (reportGenerated) stepId = 'print'
+    return {
+      connectionPair: null,
+      stepId,
+    }
+  }
+
   return {
     connectionPair: null,
-    stepId: readingCount >= MAX_OBSERVATIONS ? 'finish' : hasDuplicateReading ? 'load' : 'add',
+    stepId: readingCount > 1 ? 'repeat' : hasDuplicateReading ? 'load' : 'add',
   }
 }
 
@@ -163,7 +175,7 @@ const getCheckResultAudio = (result) => {
   }
 
   if (result.totalConnections === 0) {
-    return SIMULATION_AUDIO.multipleWrongConnections
+    return SIMULATION_AUDIO.firstCheckClick
   }
 
   if (result.wrongConnections?.length > 0 || result.missingConnections?.length > 0) {
@@ -210,8 +222,6 @@ const App = () => {
   const [wiringProgress, setWiringProgress] = useState(EMPTY_WIRING_PROGRESS)
   const autotransformerReadyAlertShownRef = useRef(false)
   const autoConnectCircuitRef = useRef(null)
-  const correctCheckPromptPendingRef = useRef(false)
-  const firstEmptyCheckPromptPlayedRef = useRef(false)
   const validateConnectionsRef = useRef(null)
 
   useLayoutEffect(() => {
@@ -234,7 +244,7 @@ const App = () => {
   const readingCount = observations.length
   const canPlotGraph = readingCount >= MIN_GRAPH_READINGS
   const readingsReady = connectionsVerified && powerOn && normalizedVoltage >= LINE_VOLTAGE
-  const canAddReading = readingsReady && !loadTurning && !hasDuplicateReading && readingCount < MAX_OBSERVATIONS
+  const canAddReading = readingsReady && !loadTurning
   const canIncreaseLoad = readingsReady && hasDuplicateReading && !loadTurning && activeLoadLevel < MAX_MOTOR_LOAD_LEVEL
 
   const activeInstruction = useMemo(() => getActiveInstruction({
@@ -260,10 +270,6 @@ const App = () => {
   const handleWiringChange = useCallback((nextProgress) => {
     const normalizedProgress = nextProgress ?? EMPTY_WIRING_PROGRESS
 
-    if (!normalizedProgress.isCorrect) {
-      correctCheckPromptPendingRef.current = false
-    }
-
     setWiringProgress((currentProgress) => (
       getWiringProgressSignature(currentProgress) === getWiringProgressSignature(normalizedProgress)
         ? currentProgress
@@ -281,27 +287,24 @@ const App = () => {
   }, [connectionsVerified, powerOn])
 
   const handleAiGuideStart = useCallback(() => {
-    correctCheckPromptPendingRef.current = false
     setStatus('AI Guide narration started.')
   }, [])
 
   const handleAiGuideFinish = useCallback(() => {
-    correctCheckPromptPendingRef.current = true
-    setStatus('AI Guide connection guidance completed.')
+    setStatus(SIMULATION_MESSAGES.allGuideConnectionsComplete)
   }, [])
 
   const handleAiGuideError = useCallback(() => {
-    correctCheckPromptPendingRef.current = false
     setStatus('AI Guide narration could not start. Add audio files or use a browser with speech synthesis.')
   }, [])
 
   const handleAiGuideStop = useCallback(() => {
-    correctCheckPromptPendingRef.current = false
     setStatus('AI Guide narration stopped.')
   }, [])
 
   const {
     activeConnection: aiGuideActiveConnection,
+    continueExperiment: continueAiGuideExperiment,
     highlightedTerminalIds: aiGuideHighlightedTerminalIds,
     isPlaying: aiGuidePlaying,
     onConnectionComplete: handleAiGuideConnectionComplete,
@@ -323,8 +326,33 @@ const App = () => {
     }
 
     stopSimulationAudio()
-    startAiGuide()
-  }, [aiGuidePlaying, startAiGuide, stopAiGuide, stopSimulationAudio])
+    let prompt = null
+    if (connectionsVerified) {
+      prompt = EXPERIMENT_ALERTS.connectionsVerified
+      if (powerOn) prompt = EXPERIMENT_ALERTS.powerOn
+      if (readingsReady) {
+        prompt = EXPERIMENT_ALERTS.nextHandClick
+        if (activeLoadLevel === 0) prompt = EXPERIMENT_ALERTS.autotransformerReadingsReady
+        if (activeLoadLevel === 1) prompt = EXPERIMENT_ALERTS.firstHandClick
+        if (hasDuplicateReading) prompt = READING_ADDED_ALERTS[readingCount - 1]
+      }
+      if (graphGenerated) prompt = EXPERIMENT_ALERTS.graphPlotted
+    }
+
+    const completedConnections = wiringProgress.totalConnections > 0
+      ? REQUIRED_CONNECTIONS.filter(pair => (
+          !wiringProgress.missingConnections.some(connection => connection.label === getConnectionLabel(...pair))
+        ))
+      : []
+
+    startAiGuide({
+      completedConnections,
+      narration: prompt ? { audio: prompt.audio, text: prompt.description } : null,
+    })
+  }, [
+    activeLoadLevel, aiGuidePlaying, connectionsVerified, graphGenerated, hasDuplicateReading,
+    powerOn, readingCount, readingsReady, startAiGuide, stopAiGuide, stopSimulationAudio, wiringProgress,
+  ])
 
   const recordObservation = () => {
     if (!connectionsVerified) {
@@ -354,6 +382,12 @@ const App = () => {
 
     if (loadTurning) return
 
+    if (hasDuplicateReading) {
+      setStatus(SIMULATION_MESSAGES.duplicateReading)
+      showStepAlert(EXPERIMENT_ALERTS.readingAlreadyExists)
+      return
+    }
+
     if (readingCount >= MAX_OBSERVATIONS) {
       setStatus('All load readings are already recorded. Plot the graph or reset for a new run.')
       showStepAlert(EXPERIMENT_ALERTS.minimumReadingsRequired, {
@@ -363,22 +397,10 @@ const App = () => {
       return
     }
 
-    if (hasDuplicateReading) {
-      setStatus('This load is already recorded. Click the hand to increase the brake load.')
-      showStepAlert(EXPERIMENT_ALERTS.readingAlreadyExists)
-      return
-    }
-
     const nextObservationId = (observations.at(-1)?.id ?? 0) + 1
     const nextObservation = createMotorObservation({ id: nextObservationId, loadLevel: activeLoadLevel })
     const nextObservationCount = readingCount + 1
-    const readingAddedAlert = {
-      ...EXPERIMENT_ALERTS.readingAdded,
-      description: nextObservationCount === MAX_OBSERVATIONS
-        ? 'All six readings recorded. Click PLOT to view the torque versus speed graph.'
-        : `Reading ${nextObservationCount} recorded. Click the hand to turn the pulley handle and increase the load.`,
-      target: nextObservationCount === MAX_OBSERVATIONS ? '#plot-button' : '#pulley-hand-control',
-    }
+    const readingAddedAlert = READING_ADDED_ALERTS[nextObservationCount - 1]
 
     setObservations([...observations, nextObservation])
     setGraphGenerated(false)
@@ -405,8 +427,6 @@ const App = () => {
     setResetRequest((current) => current + 1)
     setSessionStart(Date.now())
     autotransformerReadyAlertShownRef.current = false
-    correctCheckPromptPendingRef.current = false
-    firstEmptyCheckPromptPlayedRef.current = false
     setStatus('The simulation has been reset. You can start again.')
     showStepAlert(EXPERIMENT_ALERTS.simulationReset)
   }, [showStepAlert, stopAiGuide, stopSimulationAudio])
@@ -414,7 +434,6 @@ const App = () => {
   const handleReset = () => {
     clearAlerts()
     resetSimulation()
-    playSimulationAudio(SIMULATION_AUDIO.reset)
   }
 
   const handlePlot = () => {
@@ -464,7 +483,6 @@ const App = () => {
       return
     }
 
-    playSimulationAudio(SIMULATION_AUDIO.generateReportClick)
     setStatus('Your report has been generated successfully. Click OK to view your report.')
     showStepAlert(EXPERIMENT_ALERTS.reportGenerated, {
       onConfirm: () => {
@@ -488,37 +506,15 @@ const App = () => {
   const scaledWidth = Math.ceil(BASE_WIDTH * scale)
   const scaledHeight = Math.ceil(CONTENT_HEIGHT * scale)
   const handleCheckConnections = useCallback((result) => {
-    const shouldPlayFirstEmptyCheckPrompt = (
-      result.totalConnections === 0
-      && !firstEmptyCheckPromptPlayedRef.current
-    )
-    const shouldPlayCorrectCheckPrompt = result.isCorrect && correctCheckPromptPendingRef.current
-    const checkResultAudio = shouldPlayFirstEmptyCheckPrompt
-      ? SIMULATION_AUDIO.firstCheckClick
-      : shouldPlayCorrectCheckPrompt
-      ? SIMULATION_AUDIO.forCorrectConnectionsCheckClick
-      : getCheckResultAudio(result)
-
-    if (result.totalConnections === 0) {
-      firstEmptyCheckPromptPlayedRef.current = true
-    }
+    const checkResultAudio = getCheckResultAudio(result)
 
     if (result.isCorrect) {
-      correctCheckPromptPendingRef.current = false
-    }
-
-    playSimulationAudio(checkResultAudio)
-
-    if (result.isCorrect) {
+      if (aiGuidePlaying) continueAiGuideExperiment()
       setConnectionsLocked(true)
       setConnectionsVerified(true)
 
       setStatus('Connections Verified successfully. Now turn ON the MCB by clicking the MCB lever.')
-      showStepAlert(EXPERIMENT_ALERTS.connectionsVerified, {
-        description: 'Connections Verified successfully. Now turn ON the MCB by clicking the MCB lever.',
-        target: '#power-toggle-button',
-        title: 'Connections Verified',
-      })
+      showStepAlert(EXPERIMENT_ALERTS.connectionsVerified)
 
       return
     }
@@ -528,7 +524,7 @@ const App = () => {
     if (result.totalConnections === 0) {
       setStatus('Please make the connections first.')
       showStepAlert(EXPERIMENT_ALERTS.connectionErrorFound, {
-        description: 'Please make the required connections as per the given instructions.',
+        audio: checkResultAudio,
         type: 'warning',
       })
       return
@@ -542,6 +538,7 @@ const App = () => {
 
       setStatus(description)
       showStepAlert(EXPERIMENT_ALERTS.connectionErrorFound, {
+        audio: checkResultAudio,
         description,
         target: '#connection-lab',
         title,
@@ -554,6 +551,7 @@ const App = () => {
 
       setStatus(description)
       showStepAlert(EXPERIMENT_ALERTS.connectionErrorFound, {
+        audio: checkResultAudio,
         description,
         target: '#connection-lab',
         title: 'Missing Connections',
@@ -566,9 +564,10 @@ const App = () => {
       `Invalid connections. Correct matched points: ${result.matchedCount}; total wires: ${result.totalConnections}.`,
     )
     showStepAlert(EXPERIMENT_ALERTS.connectionErrorFound, {
+      audio: checkResultAudio,
       description: `Matched ${result.matchedCount} of ${REQUIRED_CONNECTION_COUNT} required wire pairs from ${result.totalConnections} total wires.`,
     })
-  }, [playSimulationAudio, showStepAlert])
+  }, [aiGuidePlaying, continueAiGuideExperiment, showStepAlert])
 
   const handleCheck = () => {
     const validateConnections = validateConnectionsRef.current
@@ -624,7 +623,6 @@ const App = () => {
 
   const handleTogglePower = () => {
     if (!powerOn && !connectionsVerified) {
-      playSimulationAudio(SIMULATION_AUDIO.beforeConnectionMcbAlert)
       setStatus('Make and check the connections before turning ON the MCB.')
       showStepAlert(EXPERIMENT_ALERTS.makeConnectionsBeforeMcb)
       return
@@ -635,19 +633,14 @@ const App = () => {
     }
 
     setPowerOn(true)
-    playSimulationAudio(SIMULATION_AUDIO.mcbOn)
     setStatus('MCB has been turned ON. Next, click on the autotransformer knob to set the desired voltage.')
-    showStepAlert(EXPERIMENT_ALERTS.powerOn, {
-      description: 'MCB has been turned ON. Next, click on the autotransformer knob to set the desired voltage.',
-      target: '#voltage-control',
-      title: 'MCB Turned ON',
-    })
+    showStepAlert(EXPERIMENT_ALERTS.powerOn)
   }
   const handleAutoConnect = () => {
     const wasAiGuidePlaying = aiGuidePlaying
 
     if (wasAiGuidePlaying) {
-      stopAiGuide()
+      continueAiGuideExperiment()
     }
 
     const autoConnectCircuit = autoConnectCircuitRef.current
@@ -661,21 +654,17 @@ const App = () => {
     setConnectionsLocked(true)
     setConnectionsVerified(true)
 
-    playSimulationAudio(SIMULATION_AUDIO.autoConnect)
-
-    setStatus('Autoconnect Completed. Connections are verified, click on the MCB to turn it ON.')
-    showStepAlert(EXPERIMENT_ALERTS.circuitConnectionsCompleted, {
-      description: 'Autoconnect completed. Now turn ON the MCB by clicking the MCB lever.',
-      target: '#power-toggle-button',
-      title: 'Autoconnect Completed',
-    })
+    setStatus(SIMULATION_MESSAGES.autoConnect)
+    showStepAlert(EXPERIMENT_ALERTS.circuitConnectionsCompleted)
   }
 
   const handleVoltageControlBlocked = useCallback(() => {
-    playSimulationAudio(SIMULATION_AUDIO.autotransformerBlocked)
-    setStatus('Please complete the connections first and turn ON the MCB.')
-    showStepAlert(EXPERIMENT_ALERTS.completeConnectionsBeforeAutotransformer)
-  }, [playSimulationAudio, showStepAlert])
+    const alert = connectionsVerified
+      ? EXPERIMENT_ALERTS.switchOnMcbBeforeAutotransformer
+      : EXPERIMENT_ALERTS.completeConnectionsBeforeAutotransformer
+    setStatus(alert.description)
+    showStepAlert(alert)
+  }, [connectionsVerified, showStepAlert])
 
   const handleVoltageChange = useCallback((nextVoltage) => {
     setVoltage(nextVoltage)
@@ -691,20 +680,20 @@ const App = () => {
       && !autotransformerReadyAlertShownRef.current
     ) {
       autotransformerReadyAlertShownRef.current = true
-      setStatus('The line voltage is set to 400 V. Click ADD to record the no-load readings.')
-      showStepAlert(EXPERIMENT_ALERTS.autotransformerReadingsReady, {
-        description: 'The line voltage is set to 400 V. The analyser shows the supplied phase readings. Click ADD to record the no-load readings.',
-        target: '#add-reading-button',
-        title: 'No-load Readings Ready',
-      })
+      setStatus(SIMULATION_MESSAGES.afterVoltageSet)
+      showStepAlert(EXPERIMENT_ALERTS.autotransformerReadingsReady)
     }
 
   }, [powerOn, showStepAlert, voltage])
 
   const handleIncreaseLoad = useCallback(() => {
     setActiveLoadLevel(level => Math.min(level + 1, MAX_MOTOR_LOAD_LEVEL))
-    setStatus('Brake load increased. Click ADD when the hand finishes turning.')
-  }, [])
+    const alert = activeLoadLevel === 0
+      ? EXPERIMENT_ALERTS.firstHandClick
+      : EXPERIMENT_ALERTS.nextHandClick
+    setStatus(alert.description)
+    showStepAlert(alert)
+  }, [activeLoadLevel, showStepAlert])
 
   return (
     <div id="app-wrapper" ref={wrapperRef}>

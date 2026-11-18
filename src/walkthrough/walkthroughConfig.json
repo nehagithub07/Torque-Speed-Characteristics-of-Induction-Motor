@@ -1,5 +1,5 @@
 {
-  "experimentName": "Basic Electrical Science Lab",
+  "experimentName": "Torque-Speed Characteristics of a Squirrel-Cage Induction Motor",
   "defaultLocale": "en",
   "locales": [
     "en"
@@ -15,201 +15,118 @@
         "en": "Aim"
       },
       "description": {
-        "en": "Perform a brake-load test on a three-phase motor and record its phase voltages, phase currents, total input power, spring balance weights, torque, and speed."
+        "en": "The aim of the experiment is to study the torque-speed characteristics of a three-phase squirrel-cage induction motor."
       },
-      "audio": null,
-      "placement": "bottom"
+      "audio": "./audios_walkthrough/Aim.wav",
+      "placement": "bottom",
+      "autoplayAudio": true
     },
     {
       "id": 2,
-      "target": "#instruction-button",
-      "title": {
-        "en": "Instruction Button"
-      },
-      "description": {
-        "en": "The Instructions provide step-by-step guidance on how to perform the simulation."
-      },
-      "audio": "/walkthrough-audios/instruction%20%20button.wav",
-      "placement": "right"
-    },
-    {
-      "id": 3,
-      "target": "#ai-guide-button",
-      "title": {
-        "en": "AI Guide Button"
-      },
-      "description": {
-        "en": "The AI guide will assist you in performing the simulation accurately at each step."
-      },
-      "audio": "/walkthrough-audios/AI%20Guide%20Button.wav",
-      "placement": "right"
-    },
-    {
-      "id": 4,
-      "target": "#check-button",
-      "title": {
-        "en": "Check Button"
-      },
-      "description": {
-        "en": "The CHECK button verifies all the connections to ensure that they are correct."
-      },
-      "audio": "/walkthrough-audios/Check%20Button.wav",
-      "placement": "right"
-    },
-    {
-      "id": 5,
-      "target": "#auto-connect-button",
-      "title": {
-        "en": "Auto Connect Button"
-      },
-      "description": {
-        "en": "The AUTO CONNECT button makes all the connections automatically."
-      },
-      "audio": "/walkthrough-audios/Auto%20Connect%20Button.wav",
-      "placement": "right"
-    },
-    {
-      "id": 6,
-      "target": "#add-reading-button",
-      "title": {
-        "en": "Add Button"
-      },
-      "description": {
-        "en": " The ADD button adds the readings to the observation table."
-      },
-      "audio": "/walkthrough-audios/add%20button.wav",
-      "placement": "right"
-    },
-    {
-      "id": 7,
-      "target": "#plot-button",
-      "title": {
-        "en": "Plot Button"
-      },
-      "description": {
-        "en": "The PLOT button helps visualise the readings through a graph."
-      },
-      "audio": "/walkthrough-audios/plot%20button.wav",
-      "placement": "right"
-    },
-    {
-      "id": 8,
-      "target": "#reset-button",
-      "title": {
-        "en": "Reset Button"
-      },
-      "description": {
-        "en": " The RESET button refresh the simulation to its initial state for a fresh start. "
-      },
-      "audio": "/walkthrough-audios/Reset%20Button-.wav",
-      "placement": "right"
-    },
-    {
-      "id": 9,
-      "target": "#print-button",
-      "title": {
-        "en": "Print Button"
-      },
-      "description": {
-        "en": " The PRINT button allows you to print the simulation. "
-      },
-      "audio": "/walkthrough-audios/Print%20Button.wav",
-      "placement": "right"
-    },
-    {
-      "id": 10,
       "target": "#power-supply",
       "title": {
         "en": "MCB"
       },
       "description": {
-        "en": "The MCB is the main supply switch. Complete and check all wiring and current loops before switching it on. The three-phase supply line voltage is 400 V at 50 Hz."
+        "en": "The MCB acts as the main power switch for the experiment. It also protects the circuit by automatically disconnecting the power supply in case of an overload or short circuit. When turned ON, it supplies electrical power to the circuit.\n\n**Ratings:** 3P, 415 V AC, 16 A, 50 Hz"
       },
-      "audio": null,
+      "audio": "/walkthrough-audios/MCB.wav",
       "placement": "left"
     },
     {
-      "id": 11,
+      "id": 3,
       "target": "#autotransformer-device",
       "title": {
-        "en": "Autotransformer"
+        "en": "3-Phase Autotransformer"
       },
       "description": {
-        "en": "After switching on the MCB, click the autotransformer knob to set the line voltage to 400 V. The power analyser then displays the supplied phase readings."
+        "en": "The autotransformer provides a variable AC output voltage from the 415 V input supply. During the experiment, the input voltage is increased gradually until the required voltage is reached and maintained throughout the experiment.\n\n**Ratings:**\n**Max. kVA:** 12.21, **Max. Load:** 15 A\n**Input Voltage:** 415 V, 50Hz\n**Output Voltage:** 0 - 450 V AC"
       },
-      "audio": null,
+      "audio": "./audios_walkthrough/3-Phase Autotransformer.wav",
       "placement": "left"
     },
     {
-      "id": 12,
+      "id": 4,
+      "target": "#rpm-meter",
+      "title": {
+        "en": "Tachometer"
+      },
+      "description": {
+        "en": "The Tachometer displays the rotational speed of the induction motor shaft in revolutions per minute (RPM). It helps measure the motor speed at different load conditions during the experiment.\n\n**Ratings:** 2000 RPM"
+      },
+      "audio": "./audios_walkthrough/Tachometer.wav",
+      "placement": "left"
+    },
+    {
+      "id": 5,
       "target": "#power-analyser-device",
       "title": {
-        "en": "Power Analyser"
+        "en": "Power Analyzer"
       },
       "description": {
-        "en": "The screen lists R, Y, and B phase RMS voltages and currents, with the total three-phase power in kilowatts. Current loops 13, 14, and 15 clamp around the matching red, yellow, and blue motor wires."
+        "en": "The power analyzer measures the electrical parameters of the three-phase induction motor, including phase voltages, phase currents, and power. It displays the measured values for all three phases (R, Y, and B).\n\n**Ratings:**"
       },
-      "audio": null,
+      "audio": "./audios_walkthrough/Power Analyzer.wav",
       "placement": "left"
     },
     {
-      "id": 13,
-      "target": "#pulley-hand-control",
+      "id": 6,
+      "target": "#pulley-device",
       "title": {
-        "en": "Apply Brake Load"
+        "en": "Motor Pulley Arrangement"
       },
       "description": {
-        "en": "After recording the current condition with ADD, click the hand. It moves to and turns the top handle, changing the pulley image, weights, analyser readings, and speed to the next load. Repeat for all six conditions."
+        "en": "The motor pulley and brake drum arrangement are used to apply a mechanical load to the induction motor. The load is varied gradually using the loading mechanism, and the corresponding readings of the two spring balances (W₁ and W₂) will be observed. These readings will be used to calculate the torque developed by the motor.\n\n**Ratings:** 415V, 2.2 kW, 4.8 A max., 1400 RPM"
       },
-      "audio": null,
+      "audio": "./audios_walkthrough/Motor Pulley Arrangement.wav",
       "placement": "left"
     },
     {
-      "id": 19,
+      "id": 7,
       "target": "#observation-table-panel",
       "title": {
         "en": "Observation Table"
       },
       "description": {
-        "en": "Click ADD to record the current load. Record all six conditions, starting at W1 = 0 kg and W2 = 0 kg. After each reading, click the hand to apply the next load."
+        "en": "This table records the measured phase voltages, phase currents, power, spring balance readings (W₁ and W₂), and motor speed (RPM)."
       },
-      "audio": null,
+      "audio": "./audios_walkthrough/Observation Table.wav",
       "placement": "right"
     },
     {
-      "id": 20,
+      "id": 8,
+      "target": "#formula-section-panel",
+      "title": {
+        "en": "Formula"
+      },
+      "description": {
+        "en": "This section provides the formula used to calculate the torque developed by the three-phase squirrel-cage induction motor at different load conditions. The torque is determined from the difference between the two spring balance readings and the brake drum radius."
+      },
+      "audio": "./audios_walkthrough/Formula.wav",
+      "placement": "right"
+    },
+    {
+      "id": 9,
       "target": "#results-graphs-panel",
       "title": {
         "en": "Graph"
       },
       "description": {
-        "en": "After recording all six load conditions, plot torque (N-m) on the Y-axis against speed (RPM) on the X-axis."
+        "en": "The Graph section displays the torque-speed characteristics of the squirrel-cage induction motor. The graph will be generated from the recorded readings and will help analyse the motor performance under different loading conditions."
       },
-      "audio": null,
+      "audio": "./audios_walkthrough/Graph.wav",
       "placement": "top"
     },
     {
-      "id": 21,
-      "target": "#formula-section-panel",
-      "title": {
-        "en": "Formulas"
-      },
-      "description": {
-        "en": "Torque T = (W1 − W2) × r × 9.81 N·m. The brake drum radius r is 0.075 m; spring balance weights W1 and W2 are in kilograms."
-      },
-      "audio": null,
-      "placement": "right"
-    },
-    {
-      "id": 22,
+      "id": 10,
       "target": "#generate-report-button",
       "title": {
         "en": "Generate Report"
       },
       "description": {
-        "en": "The Report button generates a summarised report of the simulation. After completing the observation table and plotting the graph, generate the report. The report will include the time taken to complete the simulation, simulation summary, the apparatus used, recorded readings, the graph and conclusion."
+        "en": "The Report button generates a summarised report of the simulation. After completing the observation table and theoretical verification, generate the report. The report will include the time taken to complete the simulation, simulation summary, the apparatus used, recorded readings, graph and the conclusion."
       },
-      "audio": "/walkthrough-audios/Generate%20Report%20.wav",
+      "audio": "./audios_walkthrough/Generate Report.wav",
       "placement": "right"
     }
   ]

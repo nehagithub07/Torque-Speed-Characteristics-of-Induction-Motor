@@ -1,4 +1,6 @@
 import { TORQUE_SPEED_AXES, getTorqueSpeedPoints, getTorqueSpeedPosition, getTorqueSpeedPath } from './torqueSpeedGraph.js'
+import { getReportPageScale } from './reportPagination.js'
+import { createReportPdf, renderReportCanvas } from './reportPdf.js'
 import { LINE_VOLTAGE, SUPPLY_FREQUENCY, BRAKE_DRUM_RADIUS, MOTOR_LOAD_READINGS, OBSERVATION_COLUMNS } from './motorLoadReadings.js'
 
 const GRAPH_VIEWBOX = {
@@ -169,18 +171,7 @@ const getFullLoadObservation = observations => (
   [...observations].sort((a, b) => b.loadLevel - a.loadLevel)[0]
 )
 
-const createSummaryRows = observations => {
-  const fullLoad = getFullLoadObservation(observations)
-  return `
-    <tr><th>Readings Recorded</th><td>${observations.length}</td></tr>
-    <tr><th>Three-phase Line Voltage</th><td>${LINE_VOLTAGE} V</td></tr>
-    <tr><th>Supply Frequency</th><td>${SUPPLY_FREQUENCY} Hz</td></tr>
-    <tr><th>Brake Drum Radius</th><td>${BRAKE_DRUM_RADIUS} m</td></tr>
-    <tr><th>Maximum Recorded Torque</th><td>${formatNumber(fullLoad?.torque, 2)} N·m</td></tr>
-    <tr><th>Speed at Maximum Load</th><td>${formatNumber(fullLoad?.speed, 0)} RPM</td></tr>
-    <tr><th>Total Input Power at Maximum Load</th><td>${formatNumber(fullLoad?.power, 2)} kW</td></tr>
-  `
-}
+const pdfScriptUrl = new URL('../../node_modules/jspdf/dist/jspdf.umd.min.js', import.meta.url).href
 
 export const createReportHtml = ({
   baseHref,
@@ -191,9 +182,9 @@ export const createReportHtml = ({
 }) => {
   const reportDate = new Date()
   const sessionEnd = reportDate.getTime()
-  const reportDateText = reportDate.toLocaleDateString(undefined, {
-    day: '2-digit',
+  const reportDateText = reportDate.toLocaleDateString('en-US', {
     month: 'long',
+    day: 'numeric',
     year: 'numeric',
   })
   const startTimeText = new Date(sessionStart).toLocaleTimeString()
@@ -201,7 +192,6 @@ export const createReportHtml = ({
   const durationText = getSessionDurationText(sessionStart, sessionEnd)
   const fullLoadRow = getFullLoadObservation(observations)
   const observationRows = createObservationRows(observations)
-  const summaryRows = createSummaryRows(observations)
   const torqueSpeedGraphSvg = createReportGraphSvg({
     ariaLabel: 'Torque (N-m) versus Speed (RPM); speed on the X-axis and torque on the Y-axis',
     color: '#0f766e',
@@ -211,11 +201,11 @@ export const createReportHtml = ({
   })
   const css = `
 body {
-  margin: 0;
-  padding: 18px 14px 30px;
+  font-family: 'Inter', 'Segoe UI', sans-serif;
   background: linear-gradient(180deg, #eef4fb 0%, #f7f9fc 100%);
   color: #1f2d3d;
-  font-family: Arial, Helvetica, sans-serif;
+  margin: 0;
+  padding: 18px 14px 30px;
   font-size: 14px;
   line-height: 1.42;
   overflow-wrap: break-word;
@@ -226,62 +216,63 @@ body {
   box-sizing: border-box;
 }
 .report-page {
-  width: min(100%, 980px);
+  width: min(100%, 960px);
   margin: 0 auto 18px;
   padding: 22px 26px;
-  overflow: visible;
-  border: 1px solid #d3ddea;
-  border-radius: 16px;
   background-color: #ffffff;
+  border-radius: 16px;
+  border: 1px solid #d3ddea;
   box-shadow: 0 12px 28px rgba(23, 50, 77, 0.1);
   break-inside: avoid-page;
   page-break-inside: avoid;
+  overflow: visible;
+  background-clip: padding-box;
 }
 .report-page:last-of-type {
   margin-bottom: 0;
 }
-.report-page--graphs {
-  break-before: page;
-  page-break-before: always;
-}
 h1,
 h2,
 h3 {
-  margin-top: 0;
   color: #1f2d3d;
+  margin-top: 0;
   font-weight: 700;
 }
 h1 {
+  font-size: 28px;
   margin: 0;
-  font-size: 25px;
+  padding: 0;
   line-height: 1.15;
 }
 h2 {
+  font-size: 20px;
   margin-bottom: 12px;
   color: #243b53;
-  font-size: 20px;
 }
 h3 {
+  font-size: 15px;
   margin-bottom: 7px;
   color: #2d4b68;
-  font-size: 15px;
 }
 p {
   margin: 0 0 8px;
+  text-align: justify;
+  text-align-last: left;
 }
 li {
   margin-bottom: 4px;
-}
-ul,
-ol {
-  margin: 7px 0 0;
-  padding-left: 20px;
+  text-align: justify;
 }
 .section {
-  margin-bottom: 14px;
-  padding: 16px 18px;
-  border-radius: 12px;
   background: linear-gradient(180deg, #f9fbfe 0%, #f4f7fb 100%);
+  padding: 16px 18px;
+  margin-bottom: 14px;
+  border-radius: 12px;
+  border: none;
+  box-shadow: none;
+  break-inside: auto;
+  page-break-inside: auto;
+  background-clip: padding-box;
 }
 .section:last-child {
   margin-bottom: 0;
@@ -291,81 +282,52 @@ ol {
   padding-bottom: 8px;
   border-bottom: 1px solid #e1e9f3;
 }
-.header-row {
-  display: grid;
-  grid-template-columns: 190px minmax(0, 1fr) 108px;
-  align-items: center;
-  gap: 16px;
-  margin-bottom: 16px;
-  break-inside: avoid-page;
-  page-break-inside: avoid;
+.label {
+  font-weight: 600;
+  color: #1f2d3d;
 }
-.report-title-block {
-  min-width: 0;
-  margin: 0;
-  padding-bottom: 10px;
-  border-bottom: 3px solid #2f7bfa;
-  text-align: center;
+ul {
+  padding-left: 20px;
+  margin: 7px 0 0;
 }
-.report-subtitle {
-  margin: 6px 0 0;
-  color: #5c6f84;
-  font-size: 13px;
-}
-.report-logo {
-  width: auto;
-  height: auto;
-  object-fit: contain;
-  flex-shrink: 0;
-  justify-self: center;
-}
-.report-logo--virtual-labs {
-  max-width: 190px;
-  max-height: 86px;
-  justify-self: start;
-}
-.report-logo--iit {
-  max-width: 88px;
-  max-height: 88px;
-  justify-self: end;
+.two-column-list {
+  column-count: 2;
+  column-gap: 32px;
+  list-style-position: inside;
+  margin-top: 10px;
 }
 .report-overview-top {
   display: flex;
-  align-items: center;
   justify-content: space-between;
+  align-items: center;
   gap: 14px;
   flex-wrap: wrap;
   margin-bottom: 10px;
 }
-.badge,
 .report-stamp {
   margin: 0;
-  padding: 7px 12px;
-  border-radius: 20px;
-  background: #e8f1ff;
-  color: #1f62d0;
-  font-size: 12px;
-  font-weight: 700;
-}
-.report-stamp {
+  padding: 7px 11px;
+  border-radius: 999px;
   background: #ffffff;
+  border: none;
   color: #50657c;
   font-size: 13px;
+  font-weight: 600;
 }
 .report-experiment-label {
   margin: 0 0 6px;
-  color: #60778f;
   font-size: 12px;
-  font-weight: 700;
   letter-spacing: 0;
   text-transform: uppercase;
+  color: #60778f;
+  font-weight: 700;
 }
 .report-experiment-title {
   margin: 0 0 14px;
-  color: #16324b;
   font-size: 22px;
-  font-weight: 700;
   line-height: 1.3;
+  font-weight: 700;
+  color: #16324b;
 }
 .info-grid {
   display: grid;
@@ -374,81 +336,54 @@ ol {
   margin-top: 10px;
 }
 .info-card {
+  background: #fff;
+  border: none;
+  border-radius: 9px;
+  padding: 10px 12px;
+  box-shadow: none;
+  font-size: 13px;
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
   gap: 4px;
-  padding: 10px 12px;
-  border-radius: 9px;
-  background: #fff;
-  font-size: 13px;
-}
-.label {
-  color: #1f2d3d;
-  font-weight: 700;
-}
-.two-column-list {
-  column-count: 2;
-  column-gap: 32px;
-  list-style-position: inside;
-  margin-top: 10px;
 }
 .table-shell {
   display: block;
   width: 100%;
-  max-width: 100%;
+  align-self: stretch;
   overflow-x: auto;
   overflow-y: visible;
+  border: none;
   border-radius: 12px;
+  max-width: 100%;
   background: #ffffff;
+  box-shadow: none;
 }
 table {
   width: 100%;
-  margin-top: 0;
   border-collapse: collapse;
+  margin-top: 0;
+  box-shadow: none;
   background-color: white;
   table-layout: auto;
 }
-.report-observation-table {
-  table-layout: fixed;
-}
-.report-observation-table__col-serial {
-  width: 48px;
-}
-.report-observation-table__col-reading {
-  width: 11%;
-}
-.report-observation-table__col-result {
-  width: 13.5%;
-}
-.report-observation-table__serial-heading {
-  min-width: 48px;
-  vertical-align: middle;
-  white-space: nowrap;
-}
-.report-observation-table__serial-heading > span {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: max-content;
-  width: 100%;
-}
 th,
 td {
-  padding: 8px 9px;
   border: 1px solid #d9e2ec;
-  font-size: 12.5px;
+  padding: 9px 10px;
   text-align: center;
+  font-size: 13px;
   vertical-align: middle;
   overflow-wrap: anywhere;
   word-break: break-word;
 }
 th {
+  background: linear-gradient(135deg, #2f7bfa 0%, #1f62d0 100%);
   border-color: #c6d7ec;
   border-bottom-color: #b4cae5;
   color: white;
-  background: linear-gradient(135deg, #2f7bfa 0%, #1f62d0 100%);
   font-weight: 700;
+  letter-spacing: 0;
 }
 thead {
   display: table-header-group;
@@ -470,67 +405,103 @@ tr:nth-child(even) {
   align-items: start;
 }
 .results-card {
-  display: flex;
+  background: #ffffff;
+  border: none;
+  border-radius: 12px;
+  padding: 14px;
+  box-shadow: none;
   width: 100%;
   max-width: 100%;
+  display: flex;
   flex-direction: column;
   gap: 9px;
-  padding: 14px;
   overflow: visible;
-  border-radius: 12px;
-  background: #ffffff;
+  background-clip: padding-box;
 }
 .results-card h3 {
   margin: 0;
   text-align: left;
+  padding-bottom: 0;
+  border-bottom: none;
 }
-.summary-table th {
-  width: 35%;
+.results-card--table {
+  break-inside: auto;
+  page-break-inside: auto;
 }
-.graphs-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 14px;
-}
-.report-graph-card {
+.results-card--graph {
   break-inside: avoid-page;
   page-break-inside: avoid;
 }
-.report-graph {
+.compact-table {
+  margin-top: 0;
+}
+.compact-table th,
+.compact-table td {
+  padding: 8px 10px;
+  font-size: 13px;
+}
+.graph {
+  text-align: center;
+  margin-top: 0;
+}
+.report-graph-card {
+  padding: 14px;
+}
+.report-graph-card #report-graph {
   display: flex;
-  min-height: 0;
   align-items: flex-start;
   justify-content: center;
+  position: relative;
+  width: 100%;
+  min-height: 340px;
   padding: 8px 0 0;
-  overflow: visible;
-  line-height: 0;
-  border-radius: 12px;
   background: linear-gradient(180deg, #f8fbfe 0%, #eef5fb 100%);
+  border: none;
+  border-radius: 12px;
+  overflow: visible;
+  background-clip: padding-box;
+  box-shadow: none;
 }
-.report-graph > * {
+.report-graph-card #report-graph > * {
   max-width: 100%;
 }
-.report-graph em {
+.report-graph-card #report-graph em {
   color: #5e738c;
   font-style: normal;
-  font-weight: 700;
+  font-weight: 600;
 }
-.report-graph__image,
-.report-graph__svg {
+.report-graph__image {
   display: block;
   width: 100%;
   max-width: 100%;
   height: auto;
 }
 .report-graph__svg {
-  font-family: Arial, Helvetica, sans-serif;
-  shape-rendering: geometricPrecision;
-  text-rendering: optimizeLegibility;
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  height: auto;
 }
 .report-graph__plot-bg {
   fill: #fffdf8;
   stroke: rgba(112, 82, 55, 0.28);
   stroke-width: 1;
+}
+.report-graph__band:nth-of-type(odd) {
+  fill: rgba(51, 124, 102, 0.035);
+}
+.report-graph__band:nth-of-type(even) {
+  fill: rgba(210, 78, 58, 0.025);
+}
+.report-graph__axis {
+  fill: none;
+  stroke: #563927;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.4;
+}
+.report-graph__svg marker path {
+  fill: #563927;
 }
 .report-graph__grid {
   stroke: rgba(117, 88, 62, 0.2);
@@ -539,12 +510,6 @@ tr:nth-child(even) {
 .report-graph__grid--horizontal {
   stroke-dasharray: 4 8;
 }
-.report-graph__axis {
-  fill: none;
-  stroke: #563927;
-  stroke-linecap: round;
-  stroke-width: 1.25;
-}
 .report-graph__tick {
   stroke: rgba(74, 43, 31, 0.38);
   stroke-linecap: round;
@@ -552,44 +517,108 @@ tr:nth-child(even) {
 }
 .report-graph__tick-label {
   fill: #6a4b34;
-  font-size: 12px;
-  font-weight: 800;
+  font-size: 13px;
+  font-weight: 700;
 }
 .report-graph__tick-label--y {
-  font-size: 11px;
+  font-size: 12px;
 }
 .report-graph__axis-title {
   fill: #38271c;
-  font-size: 14px;
-  font-weight: 900;
+  font-size: 15px;
+  font-weight: 800;
 }
 .report-graph__line {
   fill: none;
   stroke-linecap: round;
   stroke-linejoin: round;
-  stroke-width: 2.6;
+  stroke-width: 2.2;
 }
 .report-graph__point {
   fill: #ffffff;
-  stroke: var(--report-graph-color);
-  stroke-width: 2;
+  stroke-width: 1.6;
+}
+.report-graph__series-label {
+  dominant-baseline: middle;
+  font-size: 13px;
+  font-weight: 800;
+  paint-order: stroke;
+  stroke: #fffdf8;
+  stroke-linejoin: round;
+  stroke-width: 5px;
+}
+.report-graph__series-label-sub {
+  baseline-shift: sub;
+  font-size: 72%;
+}
+.header-row {
+  display: grid;
+  grid-template-columns: 190px minmax(0, 1fr) 108px;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 16px;
+  break-inside: avoid-page;
+  page-break-inside: avoid;
+}
+.report-title-block {
+  text-align: center;
+  margin: 0;
+  padding-bottom: 10px;
+  border-bottom: 3px solid #2f7bfa;
+  min-width: 0;
+}
+.report-title-block h1 {
+  font-size: 25px;
+}
+.report-subtitle {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: #5c6f84;
+}
+.badge {
+  margin: 0;
+  padding: 7px 12px;
+  border-radius: 20px;
+  background: #e8f1ff;
+  color: #1f62d0;
+  font-weight: 600;
+  font-size: 12px;
+}
+.report-logo {
+  height: auto;
+  width: auto;
+  max-width: 108px;
+  max-height: 84px;
+  object-fit: contain;
+  flex-shrink: 0;
+  justify-self: center;
+}
+.report-logo--virtual-labs {
+  max-width: 190px;
+  max-height: 86px;
+  justify-self: start;
+}
+.report-logo--iit {
+  max-width: 88px;
+  max-height: 88px;
+  justify-self: end;
 }
 .report-actions {
   display: flex;
-  width: min(100%, 980px);
   justify-content: flex-end;
   flex-wrap: wrap;
   gap: 12px;
+  width: min(100%, 960px);
   margin: 20px auto 0;
 }
 .print-btn,
 .download-btn {
   padding: 12px 24px;
+  font-size: 15px;
   border: none;
   border-radius: 30px;
   color: white;
   cursor: pointer;
-  font-size: 15px;
   transition: all 0.25s ease;
 }
 .print-btn {
@@ -600,446 +629,110 @@ tr:nth-child(even) {
 }
 .print-btn:hover,
 .download-btn:hover {
-  box-shadow: 0 6px 14px rgba(31, 45, 61, 0.12);
   transform: translateY(-2px);
+  box-shadow: 0 6px 14px rgba(31, 45, 61, 0.12);
 }
-.pdf-exporting {
-  width: 194mm !important;
-  margin: 0 !important;
-  padding: 0 !important;
-  background: #ffffff !important;
-  color: #1f2d3d !important;
-  font-size: 11px !important;
-  line-height: 1.35 !important;
-}
-.pdf-exporting .print-btn,
-.pdf-exporting .download-btn,
-.pdf-exporting .report-actions {
-  display: none !important;
-}
-.pdf-exporting .report-document {
-  width: 194mm !important;
-}
-.pdf-exporting .report-page {
-  width: 100% !important;
-  min-height: 0 !important;
-  margin: 0 !important;
-  padding: 0 !important;
-  overflow: visible !important;
-  border: 0 !important;
-  border-radius: 0 !important;
-  box-shadow: none !important;
-  break-before: auto !important;
-  page-break-before: auto !important;
-  break-inside: auto !important;
-  page-break-inside: auto !important;
-}
-.pdf-exporting .report-page--overview {
-  padding-bottom: 0 !important;
-}
-.pdf-exporting .report-page--graphs {
-  break-before: page !important;
-  page-break-before: always !important;
-  break-inside: avoid !important;
-  page-break-inside: avoid !important;
-}
-.pdf-exporting .report-page--overview .section > br {
-  display: none !important;
-}
-.pdf-exporting .header-row {
-  grid-template-columns: 44mm minmax(0, 1fr) 26mm !important;
-  gap: 6mm !important;
-  margin-bottom: 5mm !important;
-}
-.pdf-exporting .report-title-block {
-  padding-bottom: 7px !important;
-}
-.pdf-exporting .report-logo--virtual-labs {
-  max-width: 42mm !important;
-  max-height: 18mm !important;
-}
-.pdf-exporting .report-logo--iit {
-  max-width: 21mm !important;
-  max-height: 21mm !important;
-}
-.pdf-exporting h1 {
-  font-size: 18px !important;
-  line-height: 1.2 !important;
-}
-.pdf-exporting h2 {
-  margin-bottom: 8px !important;
-  padding-bottom: 6px !important;
-  font-size: 15px !important;
-  line-height: 1.25 !important;
-}
-.pdf-exporting h3 {
-  margin-bottom: 5px !important;
-  font-size: 12px !important;
-  line-height: 1.25 !important;
-}
-.pdf-exporting p {
-  margin-bottom: 6px !important;
-}
-.pdf-exporting ul,
-.pdf-exporting ol {
-  margin-top: 5px !important;
-  padding-left: 18px !important;
-}
-.pdf-exporting li {
-  margin-bottom: 3px !important;
-}
-.pdf-exporting .report-experiment-title {
-  margin-bottom: 8px !important;
-  font-size: 16px !important;
-  line-height: 1.25 !important;
-}
-.pdf-exporting .section {
-  margin-bottom: 3.5mm !important;
-  padding: 3.5mm 4mm !important;
-  border-radius: 3mm !important;
-}
-.pdf-exporting .report-page--overview .results-section,
-.pdf-exporting .report-page--graphs .section {
-  margin-bottom: 0 !important;
-}
-.pdf-exporting .report-overview-top {
-  margin-bottom: 5px !important;
-}
-.pdf-exporting .badge,
-.pdf-exporting .report-stamp {
-  padding: 4px 8px !important;
-  font-size: 10px !important;
-}
-.pdf-exporting .info-grid {
-  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
-  gap: 3mm !important;
-  margin-top: 4mm !important;
-}
-.pdf-exporting .info-card {
-  gap: 3px !important;
-  padding: 7px 9px !important;
-  font-size: 10px !important;
-}
-.pdf-exporting .two-column-list {
-  column-count: 2 !important;
-  column-gap: 10mm !important;
-  margin-top: 5px !important;
-}
-.pdf-exporting .results-stack {
-  gap: 3.5mm !important;
-}
-.pdf-exporting .results-card {
-  gap: 2.5mm !important;
-  padding: 3mm !important;
-  border-radius: 3mm !important;
-}
-.pdf-exporting th,
-.pdf-exporting td {
-  padding: 4px 5px !important;
-  font-size: 9.5px !important;
-  line-height: 1.25 !important;
-}
-.pdf-exporting .report-observation-table {
-  width: 100% !important;
-  min-width: 0 !important;
-  table-layout: fixed !important;
-}
-.pdf-exporting .report-observation-table__col-serial {
-  width: 13mm !important;
-}
-.pdf-exporting .report-observation-table__serial-heading {
-  min-width: 13mm !important;
-  padding-left: 2px !important;
-  padding-right: 2px !important;
-  vertical-align: middle !important;
-  white-space: nowrap !important;
-}
-.pdf-exporting .report-observation-table__serial-heading > span {
-  min-width: calc(13mm - 4px) !important;
-}
-.pdf-exporting .report-observation-table th,
-.pdf-exporting .report-observation-table td {
-  padding: 3px 2px !important;
-  font-size: 8.4px !important;
-  line-height: 1.15 !important;
-  overflow-wrap: normal !important;
-  word-break: normal !important;
-}
-.pdf-exporting .report-observation-table th {
-  white-space: normal !important;
-}
-.pdf-exporting .report-observation-table th[rowspan],
-.pdf-exporting .report-observation-table td {
-  white-space: nowrap !important;
-}
-.pdf-exporting .table-shell {
-  overflow: visible !important;
-  border-radius: 3mm !important;
-}
-.pdf-exporting .graphs-grid {
-  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-  gap: 3.5mm !important;
-  margin-bottom: 4mm !important;
-}
-.pdf-exporting .report-graph {
-  min-height: 0 !important;
-  padding: 2mm !important;
-  border-radius: 3mm !important;
-}
-.pdf-exporting .report-graph__svg,
-.pdf-exporting .report-graph__image {
-  max-height: 62mm !important;
-  object-fit: contain !important;
-}
-.pdf-exporting .header-row,
-.pdf-exporting .info-grid,
-.pdf-exporting .report-graph-card,
-.pdf-exporting .report-graph,
-.pdf-exporting thead,
-.pdf-exporting tr {
-  break-inside: avoid !important;
-  page-break-inside: avoid !important;
-}
-@media (max-width: 768px) {
+@media screen and (max-width: 768px) {
   body {
     padding: 20px 14px 30px;
   }
-  .report-page {
+  #report-print-frame .report-page {
     margin-bottom: 18px;
     padding: 20px 18px;
     border-radius: 16px;
   }
-  .header-row {
+  #report-print-frame .header-row {
     grid-template-columns: 1fr;
     gap: 14px;
     text-align: center;
   }
-  .report-logo,
-  .report-logo--virtual-labs,
-  .report-logo--iit {
+  #report-print-frame .report-title-block {
+    padding-bottom: 12px;
+  }
+  #report-print-frame .report-logo,
+  #report-print-frame .report-logo--virtual-labs,
+  #report-print-frame .report-logo--iit {
     max-height: 72px;
     justify-self: center;
   }
-  .two-column-list {
+  #report-print-frame .two-column-list {
     column-count: 1;
     column-gap: 0;
   }
-  .graphs-grid {
-    grid-template-columns: 1fr;
-  }
-  th,
-  td {
-    padding: 8px;
-    font-size: 12px;
+  #report-print-frame .compact-table th,
+  #report-print-frame .compact-table td {
+    padding: 9px 8px;
+    font-size: 13px;
   }
   .report-actions {
     justify-content: center;
   }
+  #report-print-frame .report-graph-card #report-graph {
+    min-height: 300px;
+  }
 }
+/* Exports use a hidden copy so the visible report never changes size or position. */
+.report-export-stage { position: fixed; left: -10000px; top: 0; width: 1000px; height: 0; overflow: hidden; visibility: hidden; pointer-events: none; }
+.report-output .report-document { display: flow-root; width: 1000px; padding: 6px; font-size: 14px; line-height: 1.25; }
+.report-output .report-page { width: 100%; margin: 0 0 8px; padding: 8px 12px; break-before: auto; break-after: auto; break-inside: auto; page-break-before: auto; page-break-after: auto; page-break-inside: auto; }
+.report-output .report-page:last-child { margin-bottom: 0; }
+.report-output .section { padding: 8px 10px; margin-bottom: 6px; }
+.report-output .section:last-child { margin-bottom: 0; }
+.report-output .section > h2:first-child { margin-bottom: 6px; padding-bottom: 5px; }
+.report-output h2 { font-size: 18px; }
+.report-output h3 { font-size: 14px; margin-bottom: 4px; }
+.report-output p { margin-bottom: 5px; }
+.report-output .header-row { grid-template-columns: 150px minmax(0, 1fr) 86px; gap: 12px; margin-bottom: 8px; }
+.report-output .report-title-block { padding-bottom: 6px; }
+.report-output .report-title-block h1 { font-size: 24px; }
+.report-output .report-logo { max-height: 54px; }
+.report-output .report-logo--virtual-labs { max-width: 150px; }
+.report-output .report-logo--iit { max-width: 70px; }
+.report-output .report-overview-top { margin-bottom: 6px; }
+.report-output .badge, .report-output .report-stamp { padding: 5px 8px; font-size: 12px; }
+.report-output .report-experiment-label { margin-bottom: 4px; font-size: 11px; }
+.report-output .report-experiment-title { margin-bottom: 6px; font-size: 20px; }
+.report-output .info-grid { grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 6px; }
+.report-output .info-card { padding: 6px 8px; gap: 2px; font-size: 12px; }
+.report-output .two-column-list { margin-top: 6px; column-gap: 24px; }
+.report-output li { margin-bottom: 2px; font-size: 13px; }
+.report-output .results-stack { gap: 6px; }
+.report-output .results-card { padding: 7px; gap: 4px; }
+.report-output .compact-table th, .report-output .compact-table td { padding: 3px 6px; font-size: 12px; }
+.report-output .report-graph-card #report-graph { height: 210px; min-height: 0; padding: 0; }
+.report-output .report-graph__svg { width: 100%; height: 210px; }
+.report-output .report-graph__tick-label, .report-output .report-graph__series-label { font-size: 18px; }
+.report-output .report-graph__axis-title { font-size: 21px; }
+@page { size: A4 portrait; margin: 8mm; }
 @media print {
-  @page {
-    size: A4;
-    margin: 8mm;
+  *, *::before, *::after {
+    print-color-adjust: exact !important;
+    -webkit-print-color-adjust: exact !important;
   }
-  .print-btn,
-  .download-btn,
-  .report-actions {
-    display: none;
-  }
-  html,
-  body {
-    width: auto;
-    margin: 0;
-    padding: 0;
-    background: #ffffff;
-    color: #1f2d3d;
-    font-size: 11px;
-    line-height: 1.35;
-  }
-  .report-document {
-    width: 100%;
-  }
-  .report-page {
-    width: 100%;
-    min-height: 0;
-    margin: 0;
-    padding: 0;
-    overflow: visible;
-    border: none;
-    border-radius: 0;
-    box-shadow: none;
-    break-before: auto;
-    page-break-before: auto;
-    break-inside: auto;
-    page-break-inside: auto;
-  }
-  .report-page--overview {
-    padding-bottom: 0;
-  }
-  .report-page--graphs {
-    break-before: page;
-    page-break-before: always;
+  html, body { width: 194mm; min-height: 0; margin: 0; padding: 0; background: #ffffff; }
+  body > :not(#report-print-stage) { display: none !important; }
+  #report-print-stage {
+    display: block;
+    position: relative;
+    left: 0;
+    visibility: visible;
+    width: 194mm;
+    height: var(--report-print-height);
+    max-height: 281mm;
+    overflow: hidden;
     break-inside: avoid;
     page-break-inside: avoid;
   }
-  .report-page--overview .section > br {
-    display: none;
-  }
-  .header-row {
-    grid-template-columns: 44mm minmax(0, 1fr) 26mm;
-    gap: 6mm;
-    margin-bottom: 5mm;
-  }
-  .report-title-block {
-    padding-bottom: 7px;
-  }
-  .report-logo--virtual-labs {
-    max-width: 42mm;
-    max-height: 18mm;
-  }
-  .report-logo--iit {
-    max-width: 21mm;
-    max-height: 21mm;
-  }
-  h1 {
-    font-size: 18px;
-    line-height: 1.2;
-  }
-  h2 {
-    margin-bottom: 8px;
-    padding-bottom: 6px;
-    font-size: 15px;
-    line-height: 1.25;
-  }
-  h3 {
-    margin-bottom: 5px;
-    font-size: 12px;
-    line-height: 1.25;
-  }
-  p {
-    margin-bottom: 6px;
-  }
-  ul,
-  ol {
-    margin-top: 5px;
-    padding-left: 18px;
-  }
-  li {
-    margin-bottom: 3px;
-  }
-  .report-experiment-title {
-    margin-bottom: 8px;
-    font-size: 16px;
-    line-height: 1.25;
-  }
-  .section {
-    margin-bottom: 3.5mm;
-    padding: 3.5mm 4mm;
-    border-radius: 3mm;
-  }
-  .report-page--overview .results-section,
-  .report-page--graphs .section {
-    margin-bottom: 0;
-  }
-  .report-overview-top {
-    margin-bottom: 5px;
-  }
-  .badge,
-  .report-stamp {
-    padding: 4px 8px;
-    font-size: 10px;
-  }
-  .info-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 3mm;
-    margin-top: 4mm;
-  }
-  .info-card {
-    gap: 3px;
-    padding: 7px 9px;
-    font-size: 10px;
-  }
-  .two-column-list {
-    column-count: 2;
-    column-gap: 10mm;
-    margin-top: 5px;
-  }
-  .results-stack {
-    gap: 3.5mm;
-  }
-  .results-card {
-    gap: 2.5mm;
-    padding: 3mm;
-    border-radius: 3mm;
-  }
-  th,
-  td {
-    padding: 4px 5px;
-    font-size: 9.5px;
-    line-height: 1.25;
-  }
-  .report-observation-table {
-    width: 100%;
-    min-width: 0;
-    table-layout: fixed;
-  }
-  .report-observation-table__col-serial {
-    width: 13mm;
-  }
-  .report-observation-table__serial-heading {
-    min-width: 13mm;
-    padding-left: 2px;
-    padding-right: 2px;
-    vertical-align: middle;
-    white-space: nowrap;
-  }
-  .report-observation-table__serial-heading > span {
-    min-width: calc(13mm - 4px);
-  }
-  .report-observation-table th,
-  .report-observation-table td {
-    padding: 3px 2px;
-    font-size: 8.4px;
-    line-height: 1.15;
-    overflow-wrap: normal;
-    word-break: normal;
-  }
-  .report-observation-table th {
-    white-space: normal;
-  }
-  .report-observation-table th[rowspan],
-  .report-observation-table td {
-    white-space: nowrap;
-  }
-  .table-shell {
-    overflow: visible;
-    border-radius: 3mm;
-  }
-  .graphs-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 3.5mm;
-    margin-bottom: 4mm;
-  }
-  .report-graph {
-    min-height: 0;
-    padding: 2mm;
-    border-radius: 3mm;
-  }
-  .report-graph__svg,
-  .report-graph__image {
-    max-height: 62mm;
-    object-fit: contain;
-  }
-  .header-row,
-  .info-grid,
-  .report-graph-card,
-  .report-graph,
-  thead,
-  tr {
-    break-inside: avoid;
-    page-break-inside: avoid;
+  #report-print-stage .report-document {
+    position: absolute;
+    top: 0;
+    left: calc((194mm - var(--report-print-width)) / 2);
+    margin: 0;
+    transform: scale(var(--report-print-scale, 1));
+    transform-origin: top left;
   }
 }
+
   `
 
   return `
@@ -1048,341 +741,258 @@ tr:nth-child(even) {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Three-Phase Motor Load Test Report</title>
+  <title>Induction Motor Simulation Report</title>
   <base href="${escapeHtml(baseHref)}">
   <style>${css}</style>
 </head>
 <body id="report-root">
-  <main class="report-document" id="report-document">
-    <div class="report-page report-page--overview">
-      <div class="header-row">
-        <img src="${escapeHtml(virtualLabsLogoSrc)}" class="report-logo report-logo--virtual-labs" alt="Virtual Labs logo">
-        <div class="report-title-block">
-          <h1>Virtual Labs Simulation Report</h1>
-        </div>
-        <img src="${escapeHtml(iitLogoSrc)}" class="report-logo report-logo--iit" alt="Indian Institute of Technology Roorkee logo">
-      </div>
-
-      <div class="section report-overview">
-        <div class="report-overview-top">
-          <p class="badge">AI-Enhanced Basic Electrical Science Lab</p>
-          <p class="report-stamp">Generated on ${escapeHtml(reportDateText)}</p>
-        </div>
-        <p class="report-experiment-label">Experiment Title</p>
-        <p class="report-experiment-title">Load Test on a Three-Phase Motor</p>
-        <div class="info-grid">
-          <div class="info-card"><span class="label">Start Time:</span>${escapeHtml(startTimeText)}</div>
-          <div class="info-card"><span class="label">End Time:</span>${escapeHtml(endTimeText)}</div>
-          <div class="info-card"><span class="label">Total Time Spent:</span>${escapeHtml(durationText)}</div>
-        </div>
-      </div>
-
-      <div class="section">
-        <h2>Experiment Summary</h2>
-        <h3>Aim</h3>
-        <p style="text-align: justify;">The aim is to observe phase voltages, phase currents, total input power, spring balance readings, torque, and speed during a brake-load test on a three-phase motor.</p>
-        <br>
-        <h3>Simulation Summary</h3>
-        <p style="text-align: justify;">The wiring and three current loops were verified. The MCB was switched on and the line voltage set to 400 V at 50 Hz. The no-load readings were recorded first. The pulley handle was turned to apply five increasing brake loads, recording the analyser, weight, torque, and speed readings at each stage.</p>
-        <br>
-
-        <h3>Apparatus Used</h3>
-        <ul class="two-column-list">
-          <li>Three-phase motor and brake drum</li>
-          <li>400 V, 50 Hz three-phase supply and MCB</li>
-          <li>Autotransformer</li>
-          <li>Three-phase power analyser with three current loops</li>
-          <li>Two spring balances (W1 and W2)</li>
-          <li>Brake drum radius: 0.075 m</li>
-          <li>Connecting leads</li>
-        </ul>
-        <p><strong>Torque:</strong> T = (W1 − W2) × 0.075 × 9.81 N·m.</p>
-        <p>V<sub>R</sub>, V<sub>Y</sub>, V<sub>B</sub> are phase voltages; I<sub>R</sub>, I<sub>Y</sub>, I<sub>B</sub> are phase currents. P is total three-phase input power.</p>
-        <br>
-      </div>
-
-      <div class="section results-section">
-        <h2>Observations and Results</h2>
-        <div class="results-stack">
-          <div class="results-card results-card--table">
-            <h3>Observation Table</h3>
-            <div class="table-shell">
-              <table class="report-observation-table">
-                <thead><tr>${OBSERVATION_COLUMNS.map(({ label, subscript, unit }) => '<th>' + escapeHtml(label) + (subscript ? '<sub>' + escapeHtml(subscript) + '</sub>' : '') + (unit ? '<br>(' + escapeHtml(unit) + ')' : '') + '</th>').join('')}</tr></thead>
-                <tbody>${observationRows}</tbody>
-              </table>
-            </div>
+  <div id="report-print-frame">
+    <main class="report-document" id="report-document">
+      <div class="report-page report-page--overview">
+        <div class="header-row">
+          <img src="${escapeHtml(virtualLabsLogoSrc)}" class="report-logo report-logo--virtual-labs" alt="Virtual Labs logo">
+          <div class="report-title-block">
+            <h1>Virtual Labs Simulation Report</h1>
           </div>
+          <img src="${escapeHtml(iitLogoSrc)}" class="report-logo report-logo--iit" alt="Indian Institute of Technology Roorkee logo">
+        </div>
 
-          <div class="results-card">
-            <h3>Result Summary</h3>
-            <div class="table-shell">
-              <table class="summary-table">
-                <tbody>${summaryRows}</tbody>
-              </table>
+        <div class="section report-overview">
+          <div class="report-overview-top">
+            <p class="badge">AI Enhanced Basic Electrical Science Lab</p>
+            <p class="report-stamp">Generated on ${escapeHtml(reportDateText)}</p>
+          </div>
+          <p class="report-experiment-label">Experiment Title</p>
+          <p class="report-experiment-title">Torque-Speed Characteristics of a Squirrel-Cage Induction Motor</p>
+          <div class="info-grid">
+            <div class="info-card"><span class="label">Start Time</span>${escapeHtml(startTimeText)}</div>
+            <div class="info-card"><span class="label">End Time</span>${escapeHtml(endTimeText)}</div>
+            <div class="info-card"><span class="label">Total Time Spent</span>${escapeHtml(durationText)}</div>
+          </div>
+        </div>
+
+        <div class="section">
+          <h2>Summary</h2>
+          <h3>Aim</h3>
+          <p>The aim of the experiment is to study the torque-speed characteristics of a three-phase squirrel-cage induction motor.</p>
+          <h3>Simulation Summary</h3>
+          <p>The wiring and three current loops were verified. The MCB was switched ON and the line voltage set to ${LINE_VOLTAGE} V at ${SUPPLY_FREQUENCY} Hz. The no-load readings were recorded first. The pulley handle was turned to apply five increasing brake loads. A total of ${observations.length} readings of phase voltages, phase currents, total input power, spring balance weights, torque, and speed were recorded and used to plot the torque-speed graph.</p>
+          <h3>Components and Key Parameters</h3>
+          <ul class="two-column-list">
+            <li>Three-phase squirrel-cage induction motor, 415 V, 2.2 kW, 4.8 A max., 1400 RPM</li>
+            <li>MCB, 3P, 415 V AC, 16 A, 50 Hz</li>
+            <li>Three-phase autotransformer, 12.21 kVA, 15 A, 0-450 V AC output</li>
+            <li>Three-phase power analyzer with three current loops</li>
+            <li>Tachometer, 2000 RPM</li>
+            <li>Brake drum and two spring balances (W1 and W2), drum radius ${BRAKE_DRUM_RADIUS} m</li>
+            <li>Connecting leads</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="report-page report-page--results">
+        <div class="section results-section">
+          <h2>Results</h2>
+          <div class="results-stack">
+            <div class="results-card results-card--table">
+              <h3>Observation Table</h3>
+              <div class="table-shell">
+                <table class="compact-table report-observation-table" aria-label="Motor load test observations">
+                  <thead><tr>${OBSERVATION_COLUMNS.map(({ label, subscript, unit }) => '<th>' + escapeHtml(label) + (subscript ? '<sub>' + escapeHtml(subscript) + '</sub>' : '') + (unit ? '<br>(' + escapeHtml(unit) + ')' : '') + '</th>').join('')}</tr></thead>
+                  <tbody>${observationRows}</tbody>
+                </table>
+              </div>
+              <p>V<sub>R</sub>, V<sub>Y</sub>, V<sub>B</sub> are phase voltages. I<sub>R</sub>, I<sub>Y</sub>, I<sub>B</sub> are phase currents. P is total three-phase input power.</p>
             </div>
           </div>
         </div>
       </div>
-    </div>
 
-    <div class="report-page report-page--graphs">
-      <div class="section results-section">
-        <h2>Graph and Conclusion</h2>
-        <div class="graphs-grid">
-          <div class="results-card report-graph-card">
-            <h3>Torque vs Speed</h3>
-            <div class="report-graph">${torqueSpeedGraphSvg}</div>
+      <div class="report-page report-page--graph">
+        <div class="section results-section">
+          <h2>Graph and Torque Calculation</h2>
+          <div class="results-stack">
+            <div class="graph report-graph-card results-card results-card--graph">
+              <h3 style="text-align: center;">Torque vs Speed</h3>
+              <div id="report-graph">${torqueSpeedGraphSvg}</div>
+            </div>
+            <div class="results-card">
+              <h3>Torque Calculation</h3>
+              <p>T = (W1 − W2) × ${BRAKE_DRUM_RADIUS} × 9.81 N·m.</p>
+              <p>W1 and W2 are spring balance readings in kilograms. Torque is calculated using their difference, the brake drum radius, and gravitational acceleration.</p>
+            </div>
+            <div class="results-card">
+              <h3>Conclusion</h3>
+              <p>The load test records the motor's electrical and mechanical readings as brake torque increases. At the maximum recorded load, W1 is ${formatNumber(fullLoadRow?.w1, 1)} kg and W2 is ${formatNumber(fullLoadRow?.w2, 1)} kg. The torque is ${formatNumber(fullLoadRow?.torque, 2)} N·m, speed is ${formatNumber(fullLoadRow?.speed, 0)} RPM, and total input power is ${formatNumber(fullLoadRow?.power, 2)} kW.</p>
+            </div>
           </div>
         </div>
-        <br>
-        <div class="results-card">
-          <h3>Conclusion</h3>
-          <p style="text-align: justify;">The load test records the motor's electrical and mechanical readings as brake torque increases. At the maximum recorded load, W1 is ${formatNumber(fullLoadRow?.w1, 1)} kg and W2 is ${formatNumber(fullLoadRow?.w2, 1)} kg. The torque is ${formatNumber(fullLoadRow?.torque, 2)} N·m, speed is ${formatNumber(fullLoadRow?.speed, 0)} RPM, and total input power is ${formatNumber(fullLoadRow?.power, 2)} kW.</p>
-        </div>
       </div>
-    </div>
-  </main>
-
-  <div class="report-actions" data-html2canvas-ignore="true">
-    <button class="print-btn" type="button" onclick="window.print()">PRINT</button>
-    <button class="download-btn" type="button" onclick="downloadReport()">DOWNLOAD REPORT</button>
+    </main>
   </div>
 
+  <div class="report-actions">
+    <button class="print-btn" type="button" onclick="printReport()">PRINT</button>
+    <button class="download-btn" type="button" onclick="downloadReport()">DOWNLOAD REPORT</button>
+  </div>
+  <audio id="report-print-audio" src="simulation-audios/Print.wav" preload="auto"></audio>
   <script>
-    function hasPdfTools() {
-      return Boolean(window.html2canvas && window.jspdf && window.jspdf.jsPDF);
+    var getReportPageScale = ${getReportPageScale.toString()};
+    var createReportPdf = ${createReportPdf.toString()};
+    var renderReportCanvas = ${renderReportCanvas.toString()};
+    var reportAssets = ${JSON.stringify({
+      script: new URL(pdfScriptUrl, baseHref).href,
+    }).replaceAll('<', '\\u003c')};
+    var pdfAssetsPromise;
+    var downloadInProgress = false;
+    var reportExportCount = 0;
+
+    function waitForReportAssets() {
+      var stage = document.getElementById('report-print-stage');
+      if (!stage) {
+        stage = createReportOutput();
+        stage.id = 'report-print-stage';
+      }
+      var images = Array.from(document.querySelectorAll('#report-document img, #report-print-stage img'));
+      return Promise.all([
+        document.fonts ? document.fonts.ready : Promise.resolve(),
+        ...images.map(function(image) {
+          if (image.complete) return Promise.resolve();
+          return new Promise(function(resolve) {
+            image.addEventListener('load', resolve, { once: true });
+            image.addEventListener('error', resolve, { once: true });
+          });
+        })
+      ]);
     }
 
-    function loadPdfScript(src, isReady) {
-      return new Promise(function(resolve, reject) {
-        if (isReady()) return resolve();
-        var existingScript = Array.from(document.scripts).find(function(script) {
-          return script.src === src;
-        });
-
-        if (existingScript) {
-          existingScript.addEventListener('load', function() {
-            isReady() ? resolve() : reject();
-          }, { once: true });
-          existingScript.addEventListener('error', reject, { once: true });
-          return;
-        }
-
-        var script = document.createElement('script');
-        script.crossOrigin = 'anonymous';
-        script.src = src;
-        script.onload = function() {
-          isReady() ? resolve() : reject();
-        };
-        script.onerror = reject;
-        document.head.appendChild(script);
-      });
-    }
-
-    function ensurePdfTools() {
-      return loadPdfScript(
-        'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js',
-        function() { return Boolean(window.html2canvas); },
-      ).then(function() {
-        return loadPdfScript(
-          'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
-          function() { return Boolean(window.jspdf && window.jspdf.jsPDF); },
-        );
-      }).then(function() {
-        if (!hasPdfTools()) {
-          throw new Error('PDF export tools did not load.');
-        }
-      });
-    }
-
-    function waitForPdfLayout() {
-      var fontReady = document.fonts && document.fonts.ready
-        ? document.fonts.ready.catch(function() {})
-        : Promise.resolve();
-      var imageReady = Array.from(document.images).map(function(image) {
-        if (image.complete) {
-          return image.decode ? image.decode().catch(function() {}) : Promise.resolve();
-        }
-
-        return new Promise(function(resolve) {
-          image.addEventListener('load', resolve, { once: true });
-          image.addEventListener('error', resolve, { once: true });
-        });
-      });
-
-      return Promise.all([fontReady].concat(imageReady)).then(function() {
-        return new Promise(function(resolve) {
-          requestAnimationFrame(function() {
-            requestAnimationFrame(resolve);
+    function createReportOutput() {
+      var stage = document.createElement('div');
+      stage.className = 'report-export-stage report-output';
+      stage.setAttribute('aria-hidden', 'true');
+      var report = document.getElementById('report-document').cloneNode(true);
+      report.removeAttribute('id');
+      // Keep the copy's graph markers and clipping paths independent of the preview.
+      var suffix = '-export-' + (++reportExportCount);
+      report.querySelectorAll('svg [id]').forEach(function(definition) {
+        var originalId = definition.id;
+        definition.id = originalId + suffix;
+        report.querySelectorAll('svg [marker-end], svg [clip-path]').forEach(function(element) {
+          ['marker-end', 'clip-path'].forEach(function(attribute) {
+            var value = element.getAttribute(attribute);
+            if (value) element.setAttribute(attribute, value.replaceAll('url(#' + originalId + ')', 'url(#' + definition.id + ')'));
           });
         });
       });
+      stage.appendChild(report);
+      document.body.appendChild(stage);
+      return stage;
     }
 
-    function getReportPageCaptureSize(reportPage) {
-      var fallbackWidth = Math.ceil(194 * 96 / 25.4);
-      var pageRect = reportPage.getBoundingClientRect();
-      var contentBounds = Array.from(reportPage.querySelectorAll('*')).reduce(function(bounds, element) {
-        var elementRect = element.getBoundingClientRect();
-
-        return {
-          bottom: Math.max(bounds.bottom, elementRect.bottom - pageRect.top),
-          right: Math.max(bounds.right, elementRect.right - pageRect.left),
-        };
-      }, {
-        bottom: pageRect.height,
-        right: pageRect.width,
+    function fitReportForPrint() {
+      var stage = document.getElementById('report-print-stage') || createReportOutput();
+      stage.id = 'report-print-stage';
+      var report = stage.querySelector('.report-document');
+      // The report's base URL points to app assets; printed SVG references must
+      // point to this report document instead of that base URL.
+      report.querySelectorAll('svg [marker-end], svg [clip-path]').forEach(function(element) {
+        ['marker-end', 'clip-path'].forEach(function(attribute) {
+          var value = element.getAttribute(attribute);
+          if (value) element.setAttribute(attribute, value.replace('url(#', 'url(' + document.URL.split('#')[0] + '#'));
+        });
       });
-      var captureWidth = Math.max(
-        fallbackWidth,
-        contentBounds.right,
-        reportPage.scrollWidth,
-        reportPage.offsetWidth,
-      );
-      var captureHeight = Math.max(
-        contentBounds.bottom,
-        reportPage.scrollHeight,
-        reportPage.offsetHeight,
-      );
-
-      return {
-        height: Math.ceil(captureHeight),
-        width: Math.ceil(captureWidth),
-      };
+      // Measure the full, unscaled document, including repeated beforeprint events.
+      report.style.transform = 'none';
+      var width = Math.max(report.scrollWidth, report.getBoundingClientRect().width);
+      var height = Math.max(report.scrollHeight, report.getBoundingClientRect().height);
+      // A4 with 8 mm margins; reserve two pixels for browser rounding.
+      var scale = getReportPageScale(width, height, 194 * 96 / 25.4 - 2, 281 * 96 / 25.4 - 2);
+      document.documentElement.style.setProperty('--report-print-scale', scale);
+      document.documentElement.style.setProperty('--report-print-width', (width * scale) + 'px');
+      document.documentElement.style.setProperty('--report-print-height', (height * scale) + 'px');
+      report.style.removeProperty('transform');
     }
 
-    function prepareReportGraphImages() {
-      var graphContainers = Array.from(document.querySelectorAll('.report-graph'));
-
-      return Promise.all(graphContainers.map(function(graphContainer) {
-        return new Promise(function(resolve) {
-          var svg = graphContainer.querySelector('svg');
-
-          if (!svg) return resolve();
-
-          try {
-            var viewBox = svg.viewBox && svg.viewBox.baseVal;
-            var width = viewBox && viewBox.width ? viewBox.width : 650;
-            var height = viewBox && viewBox.height ? viewBox.height : 286;
-            var svgText = new XMLSerializer().serializeToString(svg);
-            var svgBlob = new Blob([svgText], { type: 'image/svg+xml;charset=utf-8' });
-            var svgUrl = URL.createObjectURL(svgBlob);
-            var image = new Image();
-
-            image.onload = function() {
-              var canvas = document.createElement('canvas');
-              var scale = 2;
-              canvas.width = width * scale;
-              canvas.height = height * scale;
-
-              var context = canvas.getContext('2d');
-              context.fillStyle = '#f8fbfe';
-              context.fillRect(0, 0, canvas.width, canvas.height);
-              context.drawImage(image, 0, 0, canvas.width, canvas.height);
-
-              var png = new Image();
-              png.className = 'report-graph__image';
-              png.alt = svg.getAttribute('aria-label') || 'Motor load-test result graph';
-              png.src = canvas.toDataURL('image/png');
-              graphContainer.innerHTML = '';
-              graphContainer.appendChild(png);
-
-              URL.revokeObjectURL(svgUrl);
-              resolve();
-            };
-
-            image.onerror = function() {
-              URL.revokeObjectURL(svgUrl);
-              resolve();
-            };
-
-            image.src = svgUrl;
-          } catch {
-            resolve();
-          }
-        });
-      }));
+    function restoreReportLayout() {
+      document.documentElement.style.removeProperty('--report-print-scale');
+      document.documentElement.style.removeProperty('--report-print-width');
+      document.documentElement.style.removeProperty('--report-print-height');
     }
 
-    function downloadReport() {
-      prepareReportGraphImages().then(ensurePdfTools).then(function() {
-        var reportPages = Array.from(document.querySelectorAll('#report-document > .report-page'));
-        var PdfConstructor = window.jspdf.jsPDF;
-        var pdf = new PdfConstructor({ unit: 'mm', format: 'a4', orientation: 'portrait' });
-        var pageMargin = 8;
-        var pageWidth = 210;
-        var pageHeight = 297;
-        var contentWidth = pageWidth - (pageMargin * 2);
-        var contentHeight = pageHeight - (pageMargin * 2);
-
-        if (!reportPages.length) {
-          throw new Error('No report pages available to download.');
-        }
-
-        document.body.classList.add('pdf-exporting');
-
-        return waitForPdfLayout().then(function() {
-          return reportPages.reduce(function(pageChain, reportPage, pageIndex) {
-            return pageChain.then(function() {
-              if (pageIndex > 0) {
-                pdf.addPage();
-              }
-
-              var captureSize = getReportPageCaptureSize(reportPage);
-
-              return window.html2canvas(reportPage, {
-                backgroundColor: '#ffffff',
-                height: captureSize.height,
-                scale: 2,
-                scrollX: 0,
-                scrollY: 0,
-                useCORS: true,
-                width: captureSize.width,
-                windowWidth: captureSize.width,
-              }).then(function(canvas) {
-                var imageData = canvas.toDataURL('image/jpeg', 0.98);
-                var renderWidth = contentWidth;
-                var renderHeight = (canvas.height * renderWidth) / canvas.width;
-
-                if (renderHeight > contentHeight) {
-                  var fitRatio = contentHeight / renderHeight;
-                  renderWidth *= fitRatio;
-                  renderHeight = contentHeight;
-                }
-
-                pdf.addImage(
-                  imageData,
-                  'JPEG',
-                  pageMargin + ((contentWidth - renderWidth) / 2),
-                  pageMargin,
-                  renderWidth,
-                  renderHeight,
-                  undefined,
-                  'FAST',
-                );
-              });
-            });
-          }, Promise.resolve());
-        }).then(function() {
-          pdf.save('three-phase-motor-load-test-report.pdf');
-          document.body.classList.remove('pdf-exporting');
-        }, function(error) {
-          document.body.classList.remove('pdf-exporting');
-          throw error;
-        });
-      }).catch(function() {
-        document.body.classList.remove('pdf-exporting');
-        alert('Unable to download the report automatically. Please use your browser\\'s Save as PDF option.');
+    function playPrintNarration() {
+      var audio = document.getElementById('report-print-audio');
+      return new Promise(function(resolve) {
+        audio.currentTime = 0;
+        audio.onended = resolve;
+        audio.onerror = resolve;
+        audio.play().catch(resolve);
       });
     }
+
+    var printInProgress = false;
+    async function printReport() {
+      if (printInProgress || downloadInProgress) return;
+      printInProgress = true;
+      try {
+        await Promise.all([waitForReportAssets(), playPrintNarration()]);
+        fitReportForPrint();
+        window.print();
+      } finally {
+        restoreReportLayout();
+        printInProgress = false;
+      }
+    }
+
+    window.addEventListener('beforeprint', fitReportForPrint);
+    window.addEventListener('afterprint', restoreReportLayout);
+    // Load the hidden print copy's logos before the browser takes a print snapshot.
+    waitForReportAssets();
+
+    function loadPdfAssets() {
+      if (pdfAssetsPromise) return pdfAssetsPromise;
+      pdfAssetsPromise = (window.jspdf ? Promise.resolve() : new Promise(function(resolve, reject) {
+        var script = document.createElement('script');
+        script.src = reportAssets.script;
+        script.onload = resolve;
+        script.onerror = function() { script.remove(); reject(new Error('Unable to load the PDF renderer.')); };
+        document.head.appendChild(script);
+      })).catch(function(error) {
+        pdfAssetsPromise = null;
+        throw error;
+      });
+      return pdfAssetsPromise;
+    }
+
+    async function downloadReport() {
+      if (downloadInProgress || printInProgress) return;
+      downloadInProgress = true;
+      var buttons = Array.from(document.querySelectorAll('.report-actions button'));
+      buttons.forEach(function(button) { button.disabled = true; });
+      var stage;
+      try {
+        await loadPdfAssets();
+        await waitForReportAssets();
+        stage = createReportOutput();
+        var capture = await renderReportCanvas(stage.querySelector('.report-document'));
+        var pdf = createReportPdf(window.jspdf.jsPDF, capture);
+        if (pdf.internal.getNumberOfPages() !== 1) throw new Error('Report did not fit on one page.');
+        pdf.save('Induction Motor Simulation Report.pdf');
+      } catch {
+        alert("Unable to download the report automatically. Please use PRINT and select Save as PDF.");
+      } finally {
+        if (stage) stage.remove();
+        downloadInProgress = false;
+        buttons.forEach(function(button) { button.disabled = false; });
+      }
+    }
+
   </script>
 </body>
 </html>
   `
 }
 
-export const generateMotorReport = ({ observations, sessionStart }) => {
+export const prepareMotorReport = ({ observations, sessionStart }) => {
   const baseHref = new URL(import.meta.env.BASE_URL, window.location.origin).href
   const iitLogoSrc = new URL('../assets/IIT Logo.png', import.meta.url).href
   const virtualLabsLogoSrc = new URL('../assets/image.png', import.meta.url).href
@@ -1395,17 +1005,29 @@ export const generateMotorReport = ({ observations, sessionStart }) => {
   })
   const reportBlob = new Blob([reportHtml], { type: 'text/html' })
   const reportUrl = URL.createObjectURL(reportBlob)
-  const reportWindow = window.open(reportUrl, '_blank')
-
-  if (!reportWindow) {
+  let disposed = false
+  const dispose = () => {
+    if (disposed) return
+    disposed = true
     URL.revokeObjectURL(reportUrl)
-    return false
   }
 
-  window.setTimeout(() => {
-    URL.revokeObjectURL(reportUrl)
-  }, 60000)
-  reportWindow.focus()
+  return {
+    dispose,
+    open: () => {
+      if (disposed) return false
+      const reportWindow = window.open(reportUrl, '_blank')
+      if (!reportWindow) return false
+      window.setTimeout(dispose, 60000)
+      reportWindow.focus()
+      return true
+    },
+  }
+}
 
-  return true
+export const generateMotorReport = (options) => {
+  const report = prepareMotorReport(options)
+  const opened = report.open()
+  if (!opened) report.dispose()
+  return opened
 }

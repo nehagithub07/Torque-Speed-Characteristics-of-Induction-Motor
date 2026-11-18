@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useReducer, useRef } from 'react'
 import { LabAlertContext } from './LabAlertContext.js'
 import LabAlertCard from './LabAlertCard.jsx'
 import LabAlertSpotlight from './LabAlertSpotlight.jsx'
+import { useQueuedAudioPlayer } from '../audio/useQueuedAudioPlayer.js'
 import './labAlerts.css'
 
 const DEFAULT_DURATIONS = {
@@ -94,6 +95,7 @@ const alertReducer = (state, action) => {
 }
 
 const LabAlertProvider = ({ children }) => {
+  const { play, stop } = useQueuedAudioPlayer()
   const nextIdRef = useRef(0)
   const activeDedupeKeysRef = useRef(new Set())
   const recentAlertsRef = useRef(new Map())
@@ -174,9 +176,17 @@ const LabAlertProvider = ({ children }) => {
     return nextAlert.id
   }, [normalizeAlert, releaseDedupeKey])
 
-  const showStepAlert = useCallback((preset, overrides = {}) => (
-    showAlert({ ...preset, ...overrides })
-  ), [showAlert])
+  const showStepAlert = useCallback((preset, overrides = {}) => {
+    const alert = { ...preset, ...overrides }
+    const alertId = showAlert(alert)
+
+    if (alertId) {
+      if (alert.audio) play(alert.audio)
+      else stop()
+    }
+
+    return alertId
+  }, [play, showAlert, stop])
 
   const confirmAlert = useCallback((alert) => new Promise((resolve) => {
     const alertId = showAlert({

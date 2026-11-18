@@ -78,7 +78,10 @@ export const getConnectionInstruction = (sourceId, targetId) => {
   const probe = CURRENT_PROBES_BY_TARGET_ID[sourceId] ?? CURRENT_PROBES_BY_TARGET_ID[targetId]
   if (probe) {
     const terminalId = sourceId === probe.targetId ? targetId : sourceId
-    return `Connect terminal ${getTerminalNumber(terminalId)} to the loop target on motor wire ${probe.wireLabel}.`
+    return `Connect terminal ${getTerminalNumber(terminalId)} to the loop on ${probe.wireLabel}.`
+  }
+  if (getTerminalNumber(sourceId) === 1 && getTerminalNumber(targetId) === 4) {
+    return 'Click and drag the wire from terminal 1 and drop it on terminal 4.'
   }
   return `Connect terminal ${getTerminalNumber(sourceId)} to terminal ${getTerminalNumber(targetId)}.`
 }

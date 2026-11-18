@@ -103,7 +103,11 @@ const ConnectionLab = ({
       sourceId,
       targetId,
     }])
-    if (wrong) callbacksRef.current.onWrongConnectionMade?.()
+    if (wrong) {
+      callbacksRef.current.onWrongConnectionMade?.()
+    } else {
+      callbacksRef.current.onGuideConnectionComplete?.([sourceId, targetId])
+    }
     clearSelection()
   }, [clearSelection, commitConnections])
 

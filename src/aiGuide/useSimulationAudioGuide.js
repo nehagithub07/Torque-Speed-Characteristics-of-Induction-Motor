@@ -1,16 +1,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { useWalkthrough } from '../walkthrough/useWalkthrough.js'
-import { REQUIRED_CONNECTIONS, getConnectionInstruction, getConnectionLabel } from '../config/circuitConnections.js'
+import { CURRENT_PROBES_BY_TARGET_ID, REQUIRED_CONNECTIONS, getConnectionInstruction, getConnectionLabel } from '../config/circuitConnections.js'
 import { registerExclusiveAudio } from '../audio/exclusiveAudio.js'
-import { CONNECTION_AUDIO_BY_LABEL, SIMULATION_AUDIO } from '../audio/simulationAudio.js'
+import { CONNECTION_AUDIO_BY_LABEL, SIMULATION_AUDIO, SIMULATION_MESSAGES } from '../audio/simulationAudio.js'
 
 const GUIDE_PHASE_IDLE = 'idle'
 const GUIDE_PHASE_CLICK = 'click'
 const GUIDE_PHASE_WALKTHROUGH = 'walkthrough'
 const GUIDE_PHASE_TERMINALS = 'terminals'
+const GUIDE_PHASE_EXPERIMENT = 'experiment'
 const GUIDE_STEP_GAP_MS = 250
-const NEXT_CONNECTION_PROMPT_LIMIT = 3
+const NEXT_CONNECTION_PROMPT_LIMIT = 1
 
 const canUseSpeechSynthesis = () => (
   typeof window !== 'undefined'
@@ -30,10 +31,13 @@ const buildConnectionSteps = () => (
   REQUIRED_CONNECTIONS.map((terminalIds) => {
     const label = getConnectionLabel(...terminalIds)
     const text = getConnectionInstruction(...terminalIds)
+    const probe = CURRENT_PROBES_BY_TARGET_ID[terminalIds[0]]
+      ?? CURRENT_PROBES_BY_TARGET_ID[terminalIds[1]]
 
     return {
       audio: CONNECTION_AUDIO_BY_LABEL[label] ?? null,
       key: getConnectionKey(terminalIds),
+      highlightedTerminalIds: [...terminalIds, ...(probe?.wire ?? [])],
       label,
       terminalIds,
       text,
@@ -56,6 +60,7 @@ export const useSimulationAudioGuide = ({
   const [highlightedTerminalIds, setHighlightedTerminalIds] = useState([])
   const [phase, setPhase] = useState(GUIDE_PHASE_IDLE)
   const currentPlaybackRef = useRef(null)
+  const narrationAudioRef = useRef(null)
   const activeConnectionStepRef = useRef(null)
   const completedConnectionKeysRef = useRef(new Set())
   const pendingConnectionRef = useRef(null)
@@ -165,8 +170,24 @@ export const useSimulationAudioGuide = ({
     stopCurrentPlayback,
   ])
 
+  const continueExperiment = useCallback(() => {
+    runIdRef.current += 1
+    phaseRef.current = GUIDE_PHASE_EXPERIMENT
+    activeConnectionStepRef.current = null
+    clearWrongConnectionAudioPause()
+    stopCurrentPlayback()
+    resolvePendingConnection(false)
+    setActiveConnection(null)
+    setHighlightedTerminalIds([])
+    setPhase(GUIDE_PHASE_EXPERIMENT)
+    walkthroughOpenedForGuideRef.current = false
+  }, [clearWrongConnectionAudioPause, resolvePendingConnection, stopCurrentPlayback])
+
   const playAudio = useCallback((audioSource) => new Promise((resolve, reject) => {
-    const audio = new Audio(audioSource)
+    stopCurrentPlayback()
+    const audio = narrationAudioRef.current ?? new Audio()
+    narrationAudioRef.current = audio
+    audio.src = audioSource
     let exclusivePlayback = null
     let settled = false
 
@@ -216,7 +237,7 @@ export const useSimulationAudioGuide = ({
     audio.play().catch((error) => {
       settle(() => reject(error))
     })
-  }), [])
+  }), [stopCurrentPlayback])
 
   const speakText = useCallback((text) => new Promise((resolve, reject) => {
     if (!canUseSpeechSynthesis()) {
@@ -305,7 +326,7 @@ export const useSimulationAudioGuide = ({
     try {
       await playNarration({
         audio: SIMULATION_AUDIO.wrongConnection,
-        text: 'Wrong connection.',
+        text: SIMULATION_MESSAGES.wrongConnection,
       })
 
       if (
@@ -319,6 +340,7 @@ export const useSimulationAudioGuide = ({
       }
 
       onStatus?.(`${connectionStep.text} Make the highlighted connection to continue.`)
+      setHighlightedTerminalIds(connectionStep.highlightedTerminalIds)
       await playNarration(connectionStep)
     } catch (error) {
       if (
@@ -360,7 +382,7 @@ export const useSimulationAudioGuide = ({
     activeConnectionStepRef.current = null
     setActiveConnection(null)
     setHighlightedTerminalIds([])
-    onStatus?.('The interface walkthrough is now complete.')
+    onStatus?.(SIMULATION_MESSAGES.walkthroughComplete)
 
     try {
       await waitForWrongConnectionAudio()
@@ -371,7 +393,7 @@ export const useSimulationAudioGuide = ({
 
       await playNarration({
         audio: SIMULATION_AUDIO.walkthroughComplete,
-        text: 'The interface walkthrough is now complete.',
+        text: SIMULATION_MESSAGES.walkthroughComplete,
       })
 
       await waitForWrongConnectionAudio()
@@ -383,6 +405,10 @@ export const useSimulationAudioGuide = ({
       for (let index = 0; index < connectionSteps.length; index += 1) {
         const connectionStep = connectionSteps[index]
 
+        if (completedConnectionKeysRef.current.has(connectionStep.key)) {
+          continue
+        }
+
         await waitForWrongConnectionAudio()
 
         if (runIdRef.current !== runId) {
@@ -391,7 +417,7 @@ export const useSimulationAudioGuide = ({
 
         activeConnectionStepRef.current = connectionStep
         setActiveConnection(connectionStep.terminalIds)
-        setHighlightedTerminalIds(connectionStep.terminalIds)
+        setHighlightedTerminalIds(connectionStep.highlightedTerminalIds)
         onStatus?.(`${connectionStep.text} Make the highlighted connection to continue.`)
 
         await playNarration(connectionStep)
@@ -413,11 +439,12 @@ export const useSimulationAudioGuide = ({
         }
 
         activeConnectionStepRef.current = null
+        setHighlightedTerminalIds([])
 
         if (index < NEXT_CONNECTION_PROMPT_LIMIT && index < connectionSteps.length - 1) {
           await playNarration({
             audio: SIMULATION_AUDIO.nextConnection,
-            text: "Let's move on to the next connection.",
+            text: SIMULATION_MESSAGES.nextConnection,
           })
 
           await waitForWrongConnectionAudio()
@@ -439,11 +466,11 @@ export const useSimulationAudioGuide = ({
       setActiveConnection(null)
       activeConnectionStepRef.current = null
       setHighlightedTerminalIds([])
-      onStatus?.('All guided terminal connections are complete.')
+      onStatus?.(SIMULATION_MESSAGES.allGuideConnectionsComplete)
 
       await playNarration({
         audio: SIMULATION_AUDIO.allGuideConnectionsComplete,
-        text: 'All guided terminal connections are complete.',
+        text: SIMULATION_MESSAGES.allGuideConnectionsComplete,
       })
 
       await waitForWrongConnectionAudio()
@@ -453,8 +480,8 @@ export const useSimulationAudioGuide = ({
       }
 
       if (runIdRef.current === runId) {
-        phaseRef.current = GUIDE_PHASE_IDLE
-        setPhase(GUIDE_PHASE_IDLE)
+        phaseRef.current = GUIDE_PHASE_EXPERIMENT
+        setPhase(GUIDE_PHASE_EXPERIMENT)
         onFinish?.()
       }
     } catch (error) {
@@ -479,7 +506,7 @@ export const useSimulationAudioGuide = ({
     waitForWrongConnectionAudio,
   ])
 
-  const start = useCallback(async () => {
+  const start = useCallback(async ({ completedConnections = [], narration = null } = {}) => {
     if (phaseRef.current !== GUIDE_PHASE_IDLE) {
       stop()
       return
@@ -487,19 +514,26 @@ export const useSimulationAudioGuide = ({
 
     const runId = runIdRef.current + 1
     runIdRef.current = runId
-    completedConnectionKeysRef.current = new Set()
-    phaseRef.current = GUIDE_PHASE_CLICK
+    completedConnectionKeysRef.current = new Set(completedConnections.map(getConnectionKey))
+    const nextPhase = narration ? GUIDE_PHASE_EXPERIMENT : GUIDE_PHASE_CLICK
+    phaseRef.current = nextPhase
     walkthroughOpenedForGuideRef.current = false
     setActiveConnection(null)
     setHighlightedTerminalIds([])
-    setPhase(GUIDE_PHASE_CLICK)
+    setPhase(nextPhase)
     onStart?.()
     onStatus?.('AI Guide narration started.')
 
     try {
+      if (narration) {
+        onStatus?.(narration.text)
+        await playNarration(narration)
+        return
+      }
+
       await playNarration({
         audio: SIMULATION_AUDIO.aiGuideClick,
-        text: 'AI Guide click.',
+        text: SIMULATION_MESSAGES.aiGuideClick,
       })
 
       await waitForWrongConnectionAudio()
@@ -531,6 +565,14 @@ export const useSimulationAudioGuide = ({
 
     completedConnectionKeysRef.current.add(connectionKey)
 
+    if (
+      phaseRef.current === GUIDE_PHASE_TERMINALS
+      && activeConnectionStepRef.current?.key === connectionKey
+      && !wrongConnectionAudioPauseRef.current
+    ) {
+      stopCurrentPlayback()
+    }
+
     const pendingConnection = pendingConnectionRef.current
 
     if (
@@ -541,7 +583,7 @@ export const useSimulationAudioGuide = ({
       pendingConnectionRef.current = null
       pendingConnection.resolve(true)
     }
-  }, [])
+  }, [stopCurrentPlayback])
 
   useEffect(() => {
     if (phase !== GUIDE_PHASE_WALKTHROUGH) {
@@ -575,6 +617,7 @@ export const useSimulationAudioGuide = ({
 
   return {
     activeConnection,
+    continueExperiment,
     highlightedTerminalIds,
     isPlaying: phase !== GUIDE_PHASE_IDLE,
     phase,

@@ -1,27 +1,92 @@
 {
   "guideName": "AI Guide",
   "defaultLocale": "en",
-  "locales": ["en"],
+  "locales": [
+    "en"
+  ],
+  "description": "The AI guide will assist you in performing the simulation accurately at each step.",
+  "connectionNote": "If a wire is connected incorrectly, click the corresponding label number to remove the connection.",
   "steps": [
     {
-      "id": 1,
-      "text": "STEP 1: The previous apparatus, circuit diagram, wiring nodes, and resistance sliders have been cleared from the workspace.",
-      "audio": "#"
+      "id": "connections",
+      "title": "STEP 1",
+      "text": "Make connections as per the instructions given below or you can click the AUTOCONNECT button to make the connections automatically."
     },
     {
-      "id": 2,
-      "text": "STEP 2: Use the observation table area after the replacement apparatus is added.",
-      "audio": "#"
+      "id": "check",
+      "title": "STEP 2",
+      "text": "For manual connections, click the CHECK button to verify the connections. Autoconnect will automatically verify the connections."
     },
     {
-      "id": 3,
-      "text": "STEP 3: Plot the graph after the required readings are available.",
-      "audio": "#"
+      "id": "mcb",
+      "title": "STEP 3",
+      "text": "Switch ON the MCB by clicking the MCB lever."
     },
     {
-      "id": 4,
-      "text": "STEP 4: Use reset, print, and report controls as needed once the new setup is complete.",
-      "audio": "#"
+      "id": "voltage",
+      "title": "STEP 4",
+      "text": "Click the autotransformer knob to rotate it to the 400 V position."
+    },
+    {
+      "id": "add",
+      "title": "STEP 5",
+      "text": "Click the ADD button to record the no-load readings."
+    },
+    {
+      "id": "load",
+      "title": "STEP 6",
+      "text": "Now, click the hand icon to rotate the pulley and click the ADD button to record the load readings."
+    },
+    {
+      "id": "repeat",
+      "title": "STEP 7",
+      "text": "Repeat Step 6 until all six readings have been recorded in the observation table."
+    },
+    {
+      "id": "plot",
+      "title": "STEP 8",
+      "text": "Click the PLOT button to plot the graph."
+    },
+    {
+      "id": "report",
+      "title": "STEP 9",
+      "text": "Click the GENERATE REPORT button to generate the simulation report."
+    },
+    {
+      "id": "print",
+      "title": "STEP 10",
+      "text": "Click the PRINT button to print the simulation or simulation report."
+    },
+    {
+      "id": "reset",
+      "title": "STEP 11",
+      "text": "Click the RESET button to restart the simulation."
     }
-  ]
+  ],
+  "messages": {
+    "aiGuideClick": "Hello! I am your AI Guide. I will guide you through each step of the experiment. Please follow the instructions carefully and perform the actions as directed. Before we begin, let us familiarize ourselves with the simulation interface. To start, click on the start walkthrough.",
+    "walkthroughComplete": "The interface walkthrough is now complete. You are now ready to perform the experiment. You may either click the Auto Connect button to make the circuit connections automatically or connect the circuit manually by following the highlighted terminals. Let's begin with the first connection.",
+    "nextConnection": "Let's move on to the next connection.",
+    "allGuideConnectionsComplete": "All connections are completed. Click on the Check button to verify the connections.",
+    "wrongConnection": "This connection is wrong.",
+    "firstCheckClick": "Please make the required connections as per the given instructions.",
+    "autoConnect": "Autoconnect completed. Now turn ON the MCB by clicking the MCB lever.",
+    "beforeConnectionMcbAlert": "Make and check the connections before turning ON the MCB.",
+    "forCorrectConnectionsCheckClick": "Connections Verified successfully. Now turn ON the MCB by clicking the MCB lever.",
+    "firstTimeAutotransformerClick": "Please complete the connections first and turn ON the MCB.",
+    "autotransformerBlocked": "Ensure that the MCB is switched ON before varying the knob of the autotransformer.",
+    "mcbOn": "MCB has been turned ON. Next, click on the autotransformer knob to set the desired voltage.",
+    "afterVoltageSet": "The voltage has been set to 400 volts. The readings are now displayed on the power analyzer. Now, click on the Add button to add the no-load reading to the observation table.",
+    "firstReadingAdded": "Reading added successfully. Now, click the hand icon to rotate the pulley to apply the load.",
+    "firstHandClick": "Now, click on the Add button to add the load reading to the observation table.",
+    "secondReadingAdded": "Reading added successfully. Now, click the hand icon again to rotate the pulley to increase the load.",
+    "secondHandClick": "Now, click on the Add button to add the reading to the observation table.",
+    "thirdReadingAdded": "Reading added successfully. Repeat the same steps until all six readings have been recorded in the table.",
+    "sixthReadingAdded": "Last reading added successfully. Now, click the plot button to plot the graph.",
+    "duplicateReading": "This reading already exists in the observation table.",
+    "graphPlotted": "The graph of Torque v/s Speed has been plotted successfully. Your simulation is now complete. Click the Generate Report button to view the report. You can then print the simulation or report using the Print button, or click Reset to start the simulation again.",
+    "generateReportClick": "Your report has been generated successfully. Click OK to view your report.",
+    "reset": "The simulation has been reset. You can start again.",
+    "print": "Opening the print dialog."
+  }
 }

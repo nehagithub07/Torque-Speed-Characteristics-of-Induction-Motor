@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import SectionCard from './SectionCard.jsx'
+import aiGuideConfig from '../aiGuide/aiGuideConfig.json'
 import { REQUIRED_CONNECTIONS, getConnectionLabel } from '../config/circuitConnections.js'
 import {
   AddIcon,
@@ -79,53 +80,25 @@ const connectionGroups = REQUIRED_CONNECTIONS.map(([source, target], index) => {
 
   return {
     id: `instruction-connection-${pair}`,
-    label: `Connection ${index + 1}:`,
+    label: `Connection ${index + 1}`,
     pairs: [pair],
   }
 })
 
 const instructionSteps = [
   {
-    id: 'connections',
-    title: 'STEP 1:',
-    content: 'Drag between terminals, or select two terminals, to make the wires below. Then connect analyser ports 13, 14, and 15 to the circular targets on motor wires 7-16, 8-17, and 9-18. Drag from a port to its target, or select the port and then the target.',
-    groups: connectionGroups,
+    id: 'ai-guide',
+    title: 'AI Guide',
+    text: aiGuideConfig.description,
   },
-  {
-    title: 'NOTE:',
-    content: 'Click a terminal number to remove its connections. Numbers 13, 14, and 15 remove only their loops. Removing a motor wire also removes its attached loop.',
-  },
-  
-  {
-    id: 'check',
-    title: 'STEP 2:',
-    content: 'Click CHECK button to verify the connections. If any connection is incorrect or missing, correct the connections and check again.',
-  },
-  {
-    id: 'mcb',
-    title: 'STEP 3:',
-    content: 'After the connections are correct, turn ON the MCB by clicking the MCB lever.',
-  },
-  {
-    id: 'voltage',
-    title: 'STEP 4:',
-    content: 'Click the autotransformer knob to set the three-phase line voltage to 400 V. The analyser displays the phase voltages, phase currents, and total power at 50 Hz.',
-  },
-  {
-    id: 'add',
-    title: 'STEP 5:',
-    content: 'Click ADD to record the displayed readings. Record the no-load condition first: W1 = 0 kg and W2 = 0 kg.',
-  },
-  {
-    id: 'load',
-    title: 'STEP 6:',
-    content: 'Click the hand beside the pulley. It moves to the top handle and turns it to apply the next brake load. Wait for the hand to return, then click ADD. Repeat until all six readings are recorded.',
-  },
-  {
-    id: 'finish',
-    title: 'STEP 7:',
-    content: 'Click PLOT to view speed and total input power against torque. Generate the report or click PRINT. RESET clears the readings, load, supply, and connections.',
-  },
+  ...aiGuideConfig.steps.flatMap(step => (
+    step.id === 'connections'
+      ? [
+          { ...step, groups: connectionGroups },
+          { id: 'note', title: 'NOTE', text: aiGuideConfig.connectionNote },
+        ]
+      : [step]
+  )),
 ]
 
 const ActionButtons = ({
@@ -235,7 +208,7 @@ const ActionButtons = ({
                     key={step.id}
                     ref={isActiveStep && !hasActiveSubstep ? activeInstructionRef : undefined}
                   >
-                    <strong>{step.title}</strong> {step.content}
+                    <strong>{step.title}</strong> {step.text}
                     {step.groups ? (
                       <ul className="action-instructions-panel__substeps">
                         {step.groups.map((group) => {

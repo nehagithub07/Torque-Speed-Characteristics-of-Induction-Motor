@@ -159,11 +159,40 @@
   color: var(--terminal-color);
 }
 
-.connection-terminal.simulation-guide-highlight,
-.terminal-number-label.simulation-guide-highlight {
+.connection-terminal.simulation-guide-highlight {
   outline: 4px solid #f59e0b;
   outline-offset: 3px;
   box-shadow: 0 0 15px #f59e0b99;
+}
+
+.terminal-number-label.simulation-guide-highlight {
+  z-index: 2;
+  border-color: var(--terminal-color);
+  color: #ffffff;
+  background: var(--terminal-color);
+  outline: 3px solid #ffffff;
+  outline-offset: 0;
+  box-shadow:
+    0 0 0 8px color-mix(in srgb, var(--terminal-color) 24%, transparent),
+    0 0 18px color-mix(in srgb, var(--terminal-color) 65%, transparent),
+    inset 0 1px 1px #ffffff61;
+  transform: translateX(-50%) translateY(-2px) scale(1.12);
+  animation: terminal-number-guide-pulse 1100ms ease-in-out infinite;
+}
+
+@keyframes terminal-number-guide-pulse {
+  50% {
+    box-shadow:
+      0 0 0 10px color-mix(in srgb, var(--terminal-color) 32%, transparent),
+      0 0 26px color-mix(in srgb, var(--terminal-color) 80%, transparent),
+      inset 0 1px 1px #ffffff6b;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .terminal-number-label.simulation-guide-highlight {
+    animation: none;
+  }
 }
 
 .connection-lab--locked .connection-terminal,

@@ -1,4 +1,9 @@
 const FALLBACK_LOCALE = 'en'
+const walkthroughAudioFiles = import.meta.glob('./audios_walkthrough/*.wav', {
+  eager: true,
+  import: 'default',
+  query: '?url',
+})
 
 const getLocalizedValue = (value, locale, fallbackLocale) => {
   if (typeof value === 'string') {
@@ -35,6 +40,7 @@ export const loadWalkthroughConfig = (config, locale = FALLBACK_LOCALE) => {
       .filter((step) => step?.target)
       .map((step, index) => ({
         ...step,
+        audio: walkthroughAudioFiles[step.audio] ?? step.audio,
         description: getLocalizedValue(step.description, resolvedLocale, defaultLocale),
         id: String(step.id ?? index + 1),
         placement: step.placement ?? 'bottom',
