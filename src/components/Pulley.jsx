@@ -10,6 +10,8 @@ const springScaleTicks = Array.from({ length: SPRING_SCALE_MAX_KG }, (_, value) 
 // Project the handle's horizontal turn around the fixed spindle and collar.
 const HANDLE_ARMS = 'M 350 55 H 445 L 518 125 V 158 L 350 122 Z M 665 55 H 760 V 120 L 596 158 V 125 Z'
 const HANDLE_TURN_PER_LOAD = 60
+const FINAL_HANDLE_TURN_PER_LOAD = 30
+const INITIAL_HANDLE_TURNS = 3
 
 const SpringWeightDial = ({ cx, weight, label, faceFill }) => (
   <g className="spring-weight-dial" transform={`translate(${cx} 630)`} data-gauge={label} data-weight={weight}>
@@ -49,6 +51,10 @@ const Pulley = ({
   const dialFaceId = useId()
   const reading = getMotorLoadReading(loadLevel)
   const handleLoad = beltTargetLoad ?? reading.loadLevel
+  // Keep readings 1–4 unchanged. Shorter clockwise turns for readings 5–6
+  // stay before the 270-degree edge-on flip of the projected handle artwork.
+  const handleAngle = Math.min(handleLoad, INITIAL_HANDLE_TURNS) * HANDLE_TURN_PER_LOAD
+    + Math.max(0, handleLoad - INITIAL_HANDLE_TURNS) * FINAL_HANDLE_TURN_PER_LOAD
 
   useEffect(() => () => timersRef.current.forEach(clearTimeout), [])
 
@@ -75,7 +81,7 @@ const Pulley = ({
       id="pulley-device"
       aria-label="Pulley and brake-load assembly"
       style={{
-        '--pulley-handle-angle': `${handleLoad * HANDLE_TURN_PER_LOAD}deg`,
+        '--pulley-handle-angle': `${handleAngle}deg`,
       }}
     >
       <div className="pulley-device__image-frame">

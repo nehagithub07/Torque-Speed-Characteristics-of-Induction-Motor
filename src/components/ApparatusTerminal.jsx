@@ -20,7 +20,6 @@ const ApparatusTerminal = ({ number }) => {
         data-terminal-id={terminal.id}
         data-terminal-number={number}
         aria-label={probeDescription ?? `${terminal.name}. Drag to another terminal or select two terminals to connect.`}
-        title={probeDescription ?? terminal.name}
         type="button"
       />
       <button
@@ -28,7 +27,6 @@ const ApparatusTerminal = ({ number }) => {
         className={`terminal-number-label ${terminal.group}-terminal-label`}
         data-terminal-id={terminal.id}
         aria-label={`Remove connections from ${terminal.name}`}
-        title={`${terminal.name} — select number to remove its connections`}
         type="button"
       >
         {number}

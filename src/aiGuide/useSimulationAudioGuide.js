@@ -37,7 +37,7 @@ const buildConnectionSteps = () => (
     return {
       audio: CONNECTION_AUDIO_BY_LABEL[label] ?? null,
       key: getConnectionKey(terminalIds),
-      highlightedTerminalIds: [...terminalIds, ...(probe?.wire ?? [])],
+      highlightedTerminalIds: probe ? [probe.targetId] : terminalIds,
       label,
       terminalIds,
       text,

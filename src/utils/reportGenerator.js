@@ -1,7 +1,7 @@
 import { TORQUE_SPEED_AXES, getTorqueSpeedPoints, getTorqueSpeedPosition, getTorqueSpeedPath } from './torqueSpeedGraph.js'
 import { getReportPageScale } from './reportPagination.js'
 import { createReportPdf, renderReportCanvas } from './reportPdf.js'
-import { LINE_VOLTAGE, SUPPLY_FREQUENCY, BRAKE_DRUM_RADIUS, MOTOR_LOAD_READINGS, OBSERVATION_COLUMNS } from './motorLoadReadings.js'
+import { MOTOR_LOAD_READINGS, OBSERVATION_COLUMNS } from './motorLoadReadings.js'
 
 const GRAPH_VIEWBOX = {
   height: 286,
@@ -22,16 +22,6 @@ const escapeHtml = (value) => String(value)
   .replace(/>/g, '&gt;')
   .replace(/"/g, '&quot;')
   .replace(/'/g, '&#39;')
-
-const toNumber = (value) => {
-  const number = Number(value)
-
-  return Number.isFinite(number) ? number : 0
-}
-
-const formatNumber = (value, fractionDigits = 1) => (
-  toNumber(value).toFixed(fractionDigits)
-)
 
 const formatObservationNumber = (value, digits) => (
   Number.isFinite(value) ? Number(value.toFixed(digits)).toString() : ''
@@ -167,10 +157,6 @@ const createObservationRows = observations => emptyObservationRows.map((_, index
   )).join('') + '</tr>'
 }).join('')
 
-const getFullLoadObservation = observations => (
-  [...observations].sort((a, b) => b.loadLevel - a.loadLevel)[0]
-)
-
 const pdfScriptUrl = new URL('../../node_modules/jspdf/dist/jspdf.umd.min.js', import.meta.url).href
 
 export const createReportHtml = ({
@@ -190,7 +176,6 @@ export const createReportHtml = ({
   const startTimeText = new Date(sessionStart).toLocaleTimeString()
   const endTimeText = reportDate.toLocaleTimeString()
   const durationText = getSessionDurationText(sessionStart, sessionEnd)
-  const fullLoadRow = getFullLoadObservation(observations)
   const observationRows = createObservationRows(observations)
   const torqueSpeedGraphSvg = createReportGraphSvg({
     ariaLabel: 'Torque (N-m) versus Speed (RPM); speed on the X-axis and torque on the Y-axis',
@@ -293,8 +278,13 @@ ul {
 .two-column-list {
   column-count: 2;
   column-gap: 32px;
-  list-style-position: inside;
+  list-style-position: outside;
   margin-top: 10px;
+}
+.two-column-list li {
+  break-inside: avoid;
+  page-break-inside: avoid;
+  text-align: left;
 }
 .report-overview-top {
   display: flex;
@@ -776,16 +766,15 @@ tr:nth-child(even) {
           <h3>Aim</h3>
           <p>The aim of the experiment is to study the torque-speed characteristics of a three-phase squirrel-cage induction motor.</p>
           <h3>Simulation Summary</h3>
-          <p>The wiring and three current loops were verified. The MCB was switched ON and the line voltage set to ${LINE_VOLTAGE} V at ${SUPPLY_FREQUENCY} Hz. The no-load readings were recorded first. The pulley handle was turned to apply five increasing brake loads. A total of ${observations.length} readings of phase voltages, phase currents, total input power, spring balance weights, torque, and speed were recorded and used to plot the torque-speed graph.</p>
-          <h3>Components and Key Parameters</h3>
+          <p>The guided walkthrough familiarized the user with the simulation interface. The circuit was connected, and the connections were verified successfully. The MCB was switched ON, and the desired voltage was set using the autotransformer. The readings were measured using the power analyzer, and the torque-speed graph was plotted using the measured readings.</p>
+          <h3>Apparatus Used</h3>
           <ul class="two-column-list">
-            <li>Three-phase squirrel-cage induction motor, 415 V, 2.2 kW, 4.8 A max., 1400 RPM</li>
-            <li>MCB, 3P, 415 V AC, 16 A, 50 Hz</li>
-            <li>Three-phase autotransformer, 12.21 kVA, 15 A, 0-450 V AC output</li>
-            <li>Three-phase power analyzer with three current loops</li>
-            <li>Tachometer, 2000 RPM</li>
-            <li>Brake drum and two spring balances (W1 and W2), drum radius ${BRAKE_DRUM_RADIUS} m</li>
-            <li>Connecting leads</li>
+            <li><strong>Three-phase squirrel-cage induction motor</strong>: 415 V, 2.2 kW, 4.8 A max., 1400 RPM</li>
+            <li><strong>MCB</strong>: 3P, 415 V AC, 16 A, 50 Hz</li>
+            <li><strong>Three-phase autotransformer</strong>: 12.21 kVA, 15 A, 0-450 V AC output</li>
+            <li><strong>Three-phase power analyzer</strong>: 415 V, 16 A, 50 Hz</li>
+            <li><strong>Tachometer</strong>: 2000 RPM</li>
+            <li><strong>Connecting leads</strong></li>
           </ul>
         </div>
       </div>
@@ -810,20 +799,15 @@ tr:nth-child(even) {
 
       <div class="report-page report-page--graph">
         <div class="section results-section">
-          <h2>Graph and Torque Calculation</h2>
+          <h2>Graph</h2>
           <div class="results-stack">
             <div class="graph report-graph-card results-card results-card--graph">
               <h3 style="text-align: center;">Torque vs Speed</h3>
               <div id="report-graph">${torqueSpeedGraphSvg}</div>
             </div>
             <div class="results-card">
-              <h3>Torque Calculation</h3>
-              <p>T = (W1 − W2) × ${BRAKE_DRUM_RADIUS} × 9.81 N·m.</p>
-              <p>W1 and W2 are spring balance readings in kilograms. Torque is calculated using their difference, the brake drum radius, and gravitational acceleration.</p>
-            </div>
-            <div class="results-card">
               <h3>Conclusion</h3>
-              <p>The load test records the motor's electrical and mechanical readings as brake torque increases. At the maximum recorded load, W1 is ${formatNumber(fullLoadRow?.w1, 1)} kg and W2 is ${formatNumber(fullLoadRow?.w2, 1)} kg. The torque is ${formatNumber(fullLoadRow?.torque, 2)} N·m, speed is ${formatNumber(fullLoadRow?.speed, 0)} RPM, and total input power is ${formatNumber(fullLoadRow?.power, 2)} kW.</p>
+              <p>The load test was conducted to study the performance of the motor under different loading conditions. It was observed that as the load increased, the torque increased from 0 to 11.40 N·m, while the motor speed gradually decreased from 1490 RPM to 1420 RPM. This indicates that the motor requires higher torque to handle an increased load, resulting in a slight reduction in speed. The total input power also increased with the applied load, reaching a maximum value of 1.93 kW. Thus, the experiment demonstrates the relationship between torque, speed, and input power, providing an understanding of the motor's performance under varying load conditions.</p>
             </div>
           </div>
         </div>

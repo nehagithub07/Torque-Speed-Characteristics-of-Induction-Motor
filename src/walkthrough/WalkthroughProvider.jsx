@@ -13,19 +13,27 @@ const getElementRect = (element) => {
     return null
   }
 
-  const rect = element.getBoundingClientRect()
+  // Terminal buttons and number labels can extend beyond the apparatus image.
+  const rects = [element, ...element.querySelectorAll('[data-terminal-id]')]
+    .map((target) => target.getBoundingClientRect())
+    .filter((rect) => rect.width > 0 || rect.height > 0)
 
-  if (rect.width === 0 && rect.height === 0) {
+  if (rects.length === 0) {
     return null
   }
 
+  const bottom = Math.max(...rects.map((rect) => rect.bottom))
+  const left = Math.min(...rects.map((rect) => rect.left))
+  const right = Math.max(...rects.map((rect) => rect.right))
+  const top = Math.min(...rects.map((rect) => rect.top))
+
   return {
-    bottom: rect.bottom,
-    height: rect.height,
-    left: rect.left,
-    right: rect.right,
-    top: rect.top,
-    width: rect.width,
+    bottom,
+    height: bottom - top,
+    left,
+    right,
+    top,
+    width: right - left,
   }
 }
 

@@ -72,7 +72,7 @@ export const EXPERIMENT_ALERTS = {
     description: SIMULATION_MESSAGES.afterVoltageSet,
     duration: 12800,
     target: '#add-reading-button',
-    title: 'No-load Readings Ready',
+    title: 'No-load Readings',
     type: 'info',
   },
   rotateAutotransformerBeforeAdd: {

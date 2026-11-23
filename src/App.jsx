@@ -67,6 +67,7 @@ const getActiveInstruction = ({
   readingCount,
   hasDuplicateReading,
   reportGenerated,
+  printRequested,
 }) => {
   if (!connectionsVerified) {
     const totalConnections = wiringProgress?.totalConnections ?? 0
@@ -104,6 +105,7 @@ const getActiveInstruction = ({
     let stepId = 'plot'
     if (graphGenerated) stepId = 'report'
     if (reportGenerated) stepId = 'print'
+    if (printRequested) stepId = 'reset'
     return {
       connectionPair: null,
       stepId,
@@ -157,12 +159,8 @@ const getMissingConnectionDescription = ({ missingConnections = [] }) => (
   getConnectionDescriptionLine(missingConnections)
 )
 
-const getConnectionResultAudio = ({ missingConnections = [], wrongConnections = [] }) => {
-  const totalErrors = wrongConnections.length > 0
-    ? wrongConnections.length
-    : missingConnections.length
-
-  if (totalErrors <= 1) {
+const getConnectionResultAudio = ({ wrongConnections = [] }) => {
+  if (wrongConnections.length <= 1) {
     return SIMULATION_AUDIO.wrongConnection
   }
 
@@ -178,8 +176,12 @@ const getCheckResultAudio = (result) => {
     return SIMULATION_AUDIO.firstCheckClick
   }
 
-  if (result.wrongConnections?.length > 0 || result.missingConnections?.length > 0) {
+  if (result.wrongConnections?.length > 0) {
     return getConnectionResultAudio(result)
+  }
+
+  if (result.missingConnections?.length > 0) {
+    return null
   }
 
   return SIMULATION_AUDIO.multipleWrongConnections
@@ -196,7 +198,7 @@ const getScale = (containerWidth) => {
 }
 
 const App = () => {
-  const { clearAlerts, showStepAlert } = useLabAlerts()
+  const { clearAlerts, showAlert, showStepAlert } = useLabAlerts()
   const {
     play: playSimulationAudio,
     playSequence: playSimulationAudioSequence,
@@ -211,6 +213,7 @@ const App = () => {
   const [observations, setObservations] = useState([])
   const [graphGenerated, setGraphGenerated] = useState(false)
   const [reportGenerated, setReportGenerated] = useState(false)
+  const [printRequested, setPrintRequested] = useState(false)
   const [status, setStatus] = useState('Connect the circuit and the three current loops, then click CHECK.')
 
   const [autoConnectRequest, setAutoConnectRequest] = useState(0)
@@ -254,6 +257,7 @@ const App = () => {
     powerOn,
     readingCount,
     reportGenerated,
+    printRequested,
     wiringProgress,
     hasDuplicateReading,
   }), [
@@ -263,6 +267,7 @@ const App = () => {
     powerOn,
     readingCount,
     reportGenerated,
+    printRequested,
     wiringProgress,
     hasDuplicateReading,
   ])
@@ -307,6 +312,7 @@ const App = () => {
     continueExperiment: continueAiGuideExperiment,
     highlightedTerminalIds: aiGuideHighlightedTerminalIds,
     isPlaying: aiGuidePlaying,
+    phase: aiGuidePhase,
     onConnectionComplete: handleAiGuideConnectionComplete,
     playFeedback: playAiGuideFeedback,
     playWrongConnectionSequence: playAiGuideWrongConnectionSequence,
@@ -324,6 +330,12 @@ const App = () => {
     const alert = { ...preset, ...overrides }
     setStatus(alert.description)
 
+    // Missing wires are unfinished work; keep the current guide narration playing.
+    if (alert.audio === null) {
+      showAlert(alert)
+      return
+    }
+
     if (aiGuidePlaying) {
       // Let the guide pause and resume its connection step around the alert audio.
       showStepAlert(alert, { audio: null })
@@ -332,7 +344,7 @@ const App = () => {
     }
 
     showStepAlert(alert)
-  }, [aiGuidePlaying, playAiGuideFeedback, showStepAlert])
+  }, [aiGuidePlaying, playAiGuideFeedback, showAlert, showStepAlert])
 
   const handleAiGuide = useCallback(() => {
     if (aiGuidePlaying) {
@@ -423,6 +435,7 @@ const App = () => {
     setObservations([...observations, nextObservation])
     setGraphGenerated(false)
     setReportGenerated(false)
+    setPrintRequested(false)
     setStatus(readingAddedAlert.description ?? 'Reading added to the observation table.')
     showStepAlert(readingAddedAlert)
   }
@@ -437,6 +450,7 @@ const App = () => {
     setObservations([])
     setGraphGenerated(false)
     setReportGenerated(false)
+    setPrintRequested(false)
     setAutoConnectRequest(0)
     setCheckRequest(0)
     setConnectionsLocked(false)
@@ -469,12 +483,14 @@ const App = () => {
 
     setGraphGenerated(true)
     setReportGenerated(false)
+    setPrintRequested(false)
     setStatus('Observation graph plotted from the table readings.')
     showStepAlert(EXPERIMENT_ALERTS.graphPlotted)
   }
 
   const handlePrint = async () => {
     await playSimulationAudio(SIMULATION_AUDIO.print)
+    setPrintRequested(true)
     window.print()
   }
 
@@ -719,7 +735,10 @@ const App = () => {
           <div id="app-render">
             <main className="simulation-shell" id="walkthrough-demo-experiment">
               <HeaderBoard />
-              <WalkthroughStartButton variant="side-tab" />
+              <WalkthroughStartButton
+                highlighted={aiGuidePhase === 'walkthrough'}
+                variant="side-tab"
+              />
               {/* <StatusBar status={status} /> */}
               <span className="sr-only" role="status" aria-live="polite">{status}</span>
 
@@ -801,7 +820,7 @@ const App = () => {
               plotted={graphGenerated}
             />
             <footer className="simulation-footer">
-              &copy; 2026 Virtual Labs IIT Roorkee
+              &copy; 2026 Virtual Labs | IIT Roorkee
             </footer>
           </div>
         </div>

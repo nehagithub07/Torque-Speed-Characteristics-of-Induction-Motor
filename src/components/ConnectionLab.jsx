@@ -393,7 +393,6 @@ const ConnectionLab = ({
             style={{ left: position.x, top: position.y, '--terminal-color': color }}
             type="button"
             aria-label={`Loop target on motor wire ${wireLabel}. Select this target and an analyser port to connect a current loop.`}
-            title={`Connect a current loop to motor wire ${wireLabel}`}
           />
         )
       })}

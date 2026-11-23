@@ -157,6 +157,21 @@
   transform: translateY(2px);
 }
 
+.walkthrough-start-button--highlighted {
+  outline: 4px solid #f59e0b;
+  outline-offset: 4px;
+  animation: walkthrough-start-guide-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes walkthrough-start-guide-pulse {
+  0%, 100% { box-shadow: 0 0 0 5px #f59e0b33, 0 0 18px #f59e0b99; }
+  50% { box-shadow: 0 0 0 9px #f59e0b55, 0 0 30px #f59e0bcc; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .walkthrough-start-button--highlighted { animation: none; }
+}
+
 .walkthrough-popup {
   position: fixed;
   z-index: 1002;
